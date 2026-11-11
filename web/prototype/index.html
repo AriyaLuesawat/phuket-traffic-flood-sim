@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phuket Native — ตัวอย่าง</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1d2733; --muted: #5d6b7a; --line: #dde3ea; --panel: rgba(255,255,255,0.96);
+    --avoid: #d7301f; --slow: #f59e0b; --ok: #6b7785; --news: #9333ea; --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: 'Sarabun', system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+  #map { position: absolute; inset: 0; }
+  .panel { position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+           box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 12px 14px; }
+  #info { top: 12px; left: 12px; width: 330px; max-width: calc(100vw - 24px); }
+  #info h1 { font-size: 18px; margin: 0 0 2px; }
+  #info .sub { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  .warn { background: #fff7e6; border: 1px solid #f5d28a; border-radius: 8px; padding: 6px 8px; font-size: 12.5px; margin-bottom: 10px; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .stat b { font-size: 20px; display: block; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .legend { font-size: 13px; line-height: 1.7; }
+  .sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--news); vertical-align: middle; margin: 0 9px 0 6px; }
+  .ramp { display: inline-block; width: 110px; height: 10px; vertical-align: middle; margin-right: 6px; border-radius: 2px;
+          background: linear-gradient(90deg, #c6dbef, #9ecae1, #4292c6, #2171b5, #08458f); }
+  label.tg { display: block; font-size: 13px; margin-top: 6px; cursor: pointer; }
+  #time { left: 12px; right: 12px; bottom: 24px; margin: 0 auto; max-width: 900px; }
+  #time .row { display: flex; align-items: center; gap: 10px; }
+  #play { border: 0; background: var(--accent); color: #fff; border-radius: 6px; width: 38px; height: 32px; font-size: 15px; cursor: pointer; }
+  #clock { font-weight: 600; min-width: 190px; }
+  #rainlbl { color: var(--muted); font-size: 13px; }
+  #slider { flex: 1; }
+  canvas#rain { width: 100%; height: 46px; display: block; margin-bottom: 4px; }
+  .maplibregl-popup-content { font-family: 'Sarabun', system-ui, sans-serif; font-size: 13.5px; max-width: 280px; }
+  .msg-avoid { color: var(--avoid); font-weight: 600; }
+  .msg-slow { color: #b45309; font-weight: 600; }
+  @media (max-width: 640px) {
+    #info { width: auto; right: 12px; padding: 10px; }
+    #info .legend, #info label.tg { display: none; }
+    #clock { min-width: 0; font-size: 13px; }
+    #rainlbl { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="info" class="panel">
+  <h1>Phuket Native</h1>
+  <div class="sub">ฝนและน้ำท่วมขังบนถนน ภูเก็ต 26–29 ต.ค. 2569</div>
+  <div class="warn">ตัวอย่าง (prototype) จากแบบจำลอง <b>ไม่ใช่การพยากรณ์</b> ตำแหน่งน้ำขังในแบบจำลองยังไม่ตรงกับรายงานจริงทุกจุด</div>
+  <div class="stats">
+    <div class="stat"><b id="kmAvoid">–</b><span>กม. ควรเลี่ยง (น้ำ ≥ 30 ซม.)</span></div>
+    <div class="stat"><b id="kmSlow">–</b><span>กม. รถช้าลง (น้ำ 10–30 ซม.)</span></div>
+  </div>
+  <div class="legend">
+    <div><span class="sw" style="background:var(--avoid)"></span>ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย</div>
+    <div><span class="sw" style="background:var(--slow)"></span>รถช้าลง มีน้ำบนถนน</div>
+    <div><span class="sw" style="background:var(--ok)"></span>ถนนสายหลัก ปกติ</div>
+    <div><span class="ramp"></span>ความลึกน้ำ 5 ซม. → 1 ม.+</div>
+    <div><span class="dot"></span>จุดน้ำท่วมจากข่าว 29 ต.ค.</div>
+  </div>
+  <label class="tg"><input type="checkbox" id="tgFlood" checked> แสดงชั้นความลึกน้ำ</label>
+  <label class="tg"><input type="checkbox" id="tgNews" checked> แสดงจุดจากข่าว</label>
+</div>
+
+<div id="time" class="panel">
+  <canvas id="rain"></canvas>
+  <div class="row">
+    <button id="play" title="เล่น / หยุด">▶</button>
+    <div id="clock">–</div>
+    <input id="slider" type="range" min="0" max="0" value="0">
+    <div id="rainlbl"></div>
+  </div>
+</div>
+
+<script>
+const MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const fmt = t => { const [d, h] = t.split('T'); const [y, m, dd] = d.split('-').map(Number);
+  return `${dd} ${MONTHS[m - 1]} ${y + 543}  ${h} น.`; };
+// Pregnolato et al. (2017) eq. 4, depth in mm, held at 300 mm (roads are never closed)
+const safeSpeed = cm => { const w = Math.min(cm * 10, 300); return 0.0009 * w * w - 0.5529 * w + 86.9448; };
+const lineKm = c => { let s = 0; for (let i = 1; i < c.length; i++) {
+  const [x1, y1] = c[i - 1], [x2, y2] = c[i], r = Math.PI / 180;
+  const dx = (x2 - x1) * r * Math.cos((y1 + y2) / 2 * r), dy = (y2 - y1) * r; s += Math.hypot(dx, dy) * 6371; } return s; };
+
+let meta, roads, hour = 0, timer = null;
+const map = new maplibregl.Map({
+  container: 'map', center: [98.36, 7.93], zoom: 10.6, attributionControl: { compact: true },
+  style: { version: 8, sources: { osm: { type: 'raster', tileSize: 256, maxzoom: 19,
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], attribution: '© OpenStreetMap contributors' } },
+    layers: [{ id: 'osm', type: 'raster', source: 'osm', paint: { 'raster-saturation': -0.6, 'raster-opacity': 0.85 } }] }
+});
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+Promise.all(['data/meta.json', 'data/roads.geojson', 'data/news.geojson'].map(u => fetch(u).then(r => r.json())))
+  .then(([m, r, n]) => { meta = m; roads = r; roads.features.forEach(f => f.properties.km = lineKm(f.geometry.coordinates));
+    const start = () => init(n); map.loaded() ? start() : map.on('load', start); });
+
+function init(news) {
+  map.addSource('flood', { type: 'image', url: 'data/flood/0.png', coordinates: meta.corners });
+  map.addLayer({ id: 'flood', type: 'raster', source: 'flood', paint: { 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } });
+  map.addSource('roads', { type: 'geojson', data: roads });
+  map.addLayer({ id: 'roads-main', type: 'line', source: 'roads', filter: ['get', 'main'],
+    paint: { 'line-color': '#6b7785', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 15, 3], 'line-opacity': 0.55 } });
+  map.addLayer({ id: 'roads-water', type: 'line', source: 'roads',
+    layout: { 'line-cap': 'round' }, paint: { 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2, 15, 6] } });
+  map.addSource('news', { type: 'geojson', data: news });
+  map.addLayer({ id: 'news', type: 'circle', source: 'news', paint: { 'circle-radius': 7, 'circle-color': 'rgba(0,0,0,0)',
+    'circle-stroke-color': '#9333ea', 'circle-stroke-width': 2.5 } });
+
+  map.on('click', 'roads-water', e => roadPopup(e));
+  map.on('click', 'news', e => { const p = e.features[0].properties;
+    new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.location}</b><br>ข่าว ${p.date}: ${p.severity}<br><a href="${p.source}" target="_blank" rel="noopener">แหล่งข่าว</a>`).addTo(map); });
+  for (const id of ['roads-water', 'news']) {
+    map.on('mouseenter', id, () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseleave', id, () => map.getCanvas().style.cursor = ''); }
+
+  const slider = document.getElementById('slider');
+  slider.max = meta.times.length - 1;
+  slider.oninput = () => setHour(+slider.value);
+  document.getElementById('play').onclick = togglePlay;
+  document.getElementById('tgFlood').onchange = e => map.setLayoutProperty('flood', 'visibility', e.target.checked ? 'visible' : 'none');
+  document.getElementById('tgNews').onchange = e => map.setLayoutProperty('news', 'visibility', e.target.checked ? 'visible' : 'none');
+  window.addEventListener('resize', drawRain);
+  for (let i = 0; i < meta.times.length; i++) new Image().src = `data/flood/${i}.png`;  // preload frames
+  setHour(meta.times.indexOf('2026-10-29T08:00'));
+}
+
+function setHour(i) {
+  hour = i;
+  document.getElementById('slider').value = i;
+  document.getElementById('clock').textContent = fmt(meta.times[i]);
+  document.getElementById('rainlbl').textContent = `ฝน ${meta.rain_mm[i].toFixed(1)} มม./ชม.`;
+  map.getSource('flood').updateImage({ url: `data/flood/${i}.png`, coordinates: meta.corners });
+  const cls = ['slice', ['get', 'cls'], i, i + 1];
+  map.setFilter('roads-water', ['!=', cls, '0']);
+  map.setPaintProperty('roads-water', 'line-color', ['match', cls, '2', '#d7301f', '#f59e0b']);
+  let avoid = 0, slow = 0;
+  for (const f of roads.features) { const c = f.properties.cls[i]; if (c === '2') avoid += f.properties.km; else if (c === '1') slow += f.properties.km; }
+  document.getElementById('kmAvoid').textContent = avoid.toFixed(0);
+  document.getElementById('kmSlow').textContent = slow.toFixed(0);
+  drawRain();
+}
+
+function roadPopup(e) {
+  const p = e.features[0].properties, cm = JSON.parse(p.depth_cm)[hour], c = p.cls[hour];
+  const msg = c === '2' ? '<span class="msg-avoid">ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย</span>'
+                        : '<span class="msg-slow">มีน้ำบนถนน รถช้าลง</span>';
+  const v = Math.min(p.limit, safeSpeed(cm));
+  new maplibregl.Popup().setLngLat(e.lngLat).setHTML(
+    `<b>${p.name || 'ถนนไม่มีชื่อ'}</b><br>${msg}<br>น้ำลึกในแบบจำลอง ~${cm} ซม.<br>` +
+    `ความเร็วที่ปลอดภัย ≤ ${v.toFixed(0)} กม./ชม. (ปกติ ${p.limit})` +
+    (p.dry_speed ? `<br><span style="color:#5d6b7a">ช่วงเร่งด่วนเช้าวันปกติ ~${p.dry_speed} กม./ชม.</span>` : '')).addTo(map);
+}
+
+function togglePlay() {
+  const btn = document.getElementById('play');
+  if (timer) { clearInterval(timer); timer = null; btn.textContent = '▶'; return; }
+  btn.textContent = '❚❚';
+  timer = setInterval(() => setHour((hour + 1) % meta.times.length), 700);
+}
+
+function drawRain() {
+  const cv = document.getElementById('rain'), dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight; cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  const n = meta.rain_mm.length, max = Math.max(...meta.rain_mm), bw = w / n;
+  meta.rain_mm.forEach((p, i) => { const bh = (p / max) * (h - 14);
+    g.fillStyle = i === hour ? '#2563eb' : '#9ec5f8'; g.fillRect(i * bw + 0.5, h - bh, Math.max(bw - 1, 1), bh); });
+  g.fillStyle = '#5d6b7a'; g.font = '11px Sarabun, sans-serif';
+  g.fillText(`ฝนรายชั่วโมง (ERA5) สูงสุด ${max.toFixed(0)} มม./ชม.`, 2, 10);
+  meta.times.forEach((t, i) => { if (t.endsWith('T00:00')) { g.fillStyle = '#c3ccd6'; g.fillRect(i * bw, 12, 1, h - 12); } });
+}
+</script>
+</body>
+</html>

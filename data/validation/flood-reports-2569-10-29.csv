@@ -1,0 +1,19 @@
+id,date,time,subdistrict,location,query,severity,source,lat,lon,geocoded_as
+F01,2569-10-29,07:45,ฉลอง,ถนนหน้าวัดใต้ (วัดลัฎฐิวนาราม),Wat Lattiwanaram Chalong Phuket,สูง รถเล็กและจักรยานยนต์ผ่านไม่ได้,https://www.bangkokbiznews.com/news/1258382,,,
+F02,2569-10-29,08:10,ฉลอง,แยกไฟแดงโคกโตนด,ถนนโคกโตนด,รถเล็กผ่านไม่ได้,https://www.bangkokbiznews.com/news/1258382,7.8164267,98.3066912,"ถนนโคกโตนด, บ้านกะตะคีรี, บ้านกะตะ, กะรน, ตำบลกะรน, อำเภอเมืองภูเก็ต, จังหวัดภูเ"
+F03,2569-10-29,,ฉลอง,ถนนหลวงพ่อแช่ม ถึงตลาดสุขสำราญ,Luang Pho Chaem Road Chalong Phuket,ระดับเข่า,https://www.thaipost.net/district-news/1097443/,,,
+F04,2569-10-29,,ฉลอง,หน้าโลตัสฉลอง,Lotus Chalong Phuket,ระดับเข่า,https://www.thaipost.net/district-news/1097443/,7.8225084,98.3413840,"Lotus's go fresh, ถนนเจ้าฟ้า, ฉลอง, ตำบลฉลอง, อำเภอเมืองภูเก็ต, จังหวัดภูเก็ต, 8"
+F05,2569-10-29,,ฉลอง,หมู่บ้านฟ้าใหม่,,ระดับเข่า,https://www.thaipost.net/district-news/1097443/,,,
+F06,2569-10-29,,วิชิต,หมู่บ้านแคลิฟอร์เนีย ซอย 9,,ท่วม ไม่ระบุความลึก,https://www.thaipost.net/district-news/1097443/,7.8600190,98.3606510,"Phuket Villa California (OSM residential polygon centroid, local OSM extract)"
+F07,2569-10-29,,วิชิต,แยกท่าแครง ดาวรุ่ง,Tha Khaeng intersection Phuket,ท่วม ไม่ระบุความลึก,https://www.thaipost.net/district-news/1097443/,7.8683034,98.3747980,"โรงเรียนดาวรุ่งวิทยา, ถนนเจ้าฟ้า (Nominatim) — siamrath ระบุ ""หน้าโรงแบตโรงเรียนดาวรุ่ง"""
+F08,2569-10-29,,วิชิต,หน้าโรงพยาบาลดีบุก,Dibuk Hospital Phuket,ท่วม ไม่ระบุความลึก,https://www.thaipost.net/district-news/1097443/,7.8719169,98.3601895,"โรงพยาบาลดีบุก, ถนนเจ้าฟ้า, วิชิต, เทศบาลนครภูเก็ต, เทศบาลตำบลวิชิต, อำเภอเมืองภ"
+F09,2569-10-29,,วิชิต,หน้าคิงพาวเวอร์,King Power Phuket,ท่วม 1 ช่องจราจร,https://www.thaipost.net/district-news/1097443/,7.8736528,98.3615918,"KING POWER PHUKET, ถนนเหมืองทุ่งทอง, บ้านตีนเขา, ตำบลวิชิต, เทศบาลตำบลวิชิต, อำเ"
+F10,2569-10-29,,วิชิต,หน้าโรงเรียนภูเก็ตไทยหัว,Phuket Thaihua School,ท่วม ไม่ระบุความลึก,https://www.thaipost.net/district-news/1097443/,7.8849656,98.3728212,"โรงดรียนภูเก็ตไทยหัวอาเซียนวิทยา, Wirat Hong Yok 2/9 Street, ตำบลตลาดเหนือ, เทศบ"
+F11,2569-10-29,,ตลาดใหญ่,สวนหลวงนาคา (สวนหลวง ร.9),Suan Luang Park Phuket,ระดับน้ำสูง,https://www.thaipost.net/district-news/1097443/,7.8753420,98.3770851,"สวนสาธารณะเฉลิมพระเกียรติ, ตำบลตลาดเหนือ, เทศบาลนครภูเก็ต, เทศบาลตำบลวิชิต, อำเภ"
+F12,2569-10-29,,กะรน,หน้าสถานีดับเพลิงกะตะ,สถานีดับเพลิงกะตะ,ท่วม ไม่ระบุความลึก,https://www.thaipost.net/district-news/1097443/,7.8172780,98.3107360,"สถานีดับเพลิงกะรน, 19, ถนนโคกโตนด, บ้านกะตะคีรี, บ้านกะตะ, กะรน, ตำบลกะรน, อำเภอ"
+F13,2569-10-29,,ราไวย์,ซุปเปอร์ชีปใสยวน ถึงปากซอยสามัคคี 4,Super Cheap Rawai,ท่วม ไม่ระบุความลึก,https://www.thaipost.net/district-news/1097443/,7.8202387,98.3412954,"Super Cheap, Soi Ruam- U-Thit, ตำบลราไวย์, อำเภอเมืองภูเก็ต, จังหวัดภูเก็ต, 8323"
+F14,2569-10-29,,กมลา,ถนนสายหัวควนเหนือ,,ท่วม ไม่ระบุความลึก,https://www.thaipost.net/district-news/1097443/,,,
+F15,2569-10-29,,ฉลอง,ห้าแยกฉลอง,ห้าแยกฉลอง,ท่วม ไม่ระบุความลึก,https://siamrath.co.th/regional/332013,7.8219768,98.3407960,ทางลอดห้าแยกฉลอง (Nominatim)
+F16,2569-10-29,เช้า,กะรน,หน้าห้างซุปเปอร์ชีป สาขากะรน,Super Cheap Karon,ท่วม ไม่ระบุความลึก,https://www.tnews.co.th/social/social-news/662496,7.8279793,98.3012620,"Super Cheap, ถนนปฏัก, กะรน (Nominatim)"
+F17,2569-10-29,,ฉลอง,หน้าตลาดนากก,บ้านนากก,ท่วม ไม่ระบุความลึก,https://siamrath.co.th/regional/332013,7.8622080,98.3359690,บ้านนากก (OSM place=village) ไม่พบตำแหน่งตลาด พิกัดโดยประมาณ
+F18,2569-10-29,เช้า,ตลาดใหญ่,วงเวียนหอนาฬิกา (น้ำจากคลองบางใหญ่ล้น),วงเวียนหอนาฬิกา ภูเก็ต,ได้รับผลกระทบจากคลองบางใหญ่ล้น,https://spacebar.th/social/phuket-remains-in-a-critical-situation-with-accumulated-rainfall-causing-high-flood-levels-in-many-areas,7.8804205,98.3921850,วงเวียนสุรินทร์ (Nominatim) — ไม่แน่ใจ อาจหมายถึงวงเวียนหอนาฬิกาฉลอง

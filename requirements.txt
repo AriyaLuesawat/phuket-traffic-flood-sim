@@ -1,0 +1,14 @@
+eclipse-sumo==1.28.0
+traci
+sumolib
+osmnx
+geopandas
+rasterio
+numpy
+scipy
+matplotlib
+pyproj
+shapely
+requests
+scikit-image
+fabdem

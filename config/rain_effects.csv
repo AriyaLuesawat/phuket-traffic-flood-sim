@@ -1,0 +1,5 @@
+class,min_mm_h,max_mm_h,capacity_factor,capacity_factor_low,capacity_factor_high,speed_factor,speed_source
+dry,0.0,0.1,1.0,1.0,1.0,1.0,
+light,0.1,2.54,0.98,0.9657,0.9883,0.98,FHWA interpolation (Table 36); SHRP 2-L08 has no light-rain class
+medium,2.54,6.35,0.93,0.899,0.9433,0.94,"SHRP 2-L08, 65 mi/h (Table 34)"
+heavy,6.35,,0.86,0.8233,0.8928,0.93,"SHRP 2-L08, 65 mi/h (Table 34)"

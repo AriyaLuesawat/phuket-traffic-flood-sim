@@ -1,0 +1,15 @@
+.venv/
+data/raw/
+data/processed/
+output/
+__pycache__/
+.DS_Store
+network/
+docs/papers/
+.env
+web/prototype/data/
+web/app/data/
+web/app/build_tmp/
+demand/
+data/synthetic/
+output-build.log
