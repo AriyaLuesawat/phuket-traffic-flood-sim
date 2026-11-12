@@ -4,6 +4,8 @@ An island-wide traffic simulation of Phuket, Thailand, that estimates how rain a
 
 **Status (Nov 2026):** research draft. A Thai manuscript is in [`manuscript/`](manuscript/). The code and method notes for every step are in this repository. The input data and model outputs are not, so the scripts cannot be rerun from a fresh clone without downloading the data first (see [Running it](#running-it)).
 
+**Open the viewer: https://ariyaluesawat.github.io/phuket-traffic-flood-sim/** (simulation results, not real traffic data; best on a computer)
+
 ![Web viewer, 2D, morning peak with heavy rain and water at the reported flood places](docs/img/fig6-viewer.png)
 
 ## What it does
