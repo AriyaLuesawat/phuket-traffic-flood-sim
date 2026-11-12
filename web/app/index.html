@@ -521,6 +521,7 @@ function nearestPeriod() {
 }
 
 function applyLive(scenario) {
+  L.want = scenario;  // drops wait for this run to be on the map
   $('period').value = L.period; $('period').onchange();
   $('scenario').value = scenario; selectRun();
 }
@@ -536,7 +537,10 @@ const RAIN_TOP = 700;  // m above ground where 3D drops start
 const fx = { drops: [], last: 0, w: [], wn: 0 };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function rainCls() {
-  const s = S.run ? S.run.s : 'dry';
+  // no drops until the scenario on the map is the right one: the run is loaded and, in the live menu, the live
+  // rain has arrived and been applied (before that the map still shows the default scenario)
+  if (!S.run || ($('ctl').classList.contains('live') && S.run.s !== L.want)) return 'dry';
+  const s = S.run.s;
   return s.startsWith('heavy') ? 'heavy' : s;
 }
 function rainFx(now) {
