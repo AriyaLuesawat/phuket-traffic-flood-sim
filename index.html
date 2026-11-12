@@ -146,7 +146,7 @@
     <div class="now" id="nowClock"></div>
     <div aria-live="polite">
     <div class="status"><span id="liveIcon" aria-hidden="true">⏳</span>
-      <div><div class="big" id="liveMain">กำลังโหลดข้อมูลฝน…</div><span class="badge" id="liveLevel" hidden></span></div></div>
+      <div><div class="big" id="liveMain">กำลังโหลดข้อมูลฝน… (แผนที่แสดงวันไม่มีฝนไปก่อน)</div><span class="badge" id="liveLevel" hidden></span></div></div>
     <div class="small" id="liveSub"></div>
     <div id="liveBars" aria-hidden="true"></div>
     <div class="barsx" aria-hidden="true"><span>24 ชม. ที่แล้ว</span><span>ตอนนี้</span></div>
@@ -229,11 +229,12 @@ const MAX_DOTS_EDGE = 12;   // dots drawn per edge at most
 const MAX_DOTS = 40000;
 const ANIM_SIM_S = 30;      // simulated seconds per real second for the moving dots
 const TOWN = { longitude: 98.388, latitude: 7.884, zoom: 13.4 };
+const LIMIT = { minZoom: 9.6, maxZoom: 17.5, lon: [98.18, 98.55], lat: [7.70, 8.25] };  // keep Phuket on screen
 const ISLAND = { longitude: 98.34, latitude: 7.95, zoom: 10.4 };
 const ADD = { depthTest: false, blend: true, blendFunc: [770, 1], blendEquation: 32774 };  // additive glow
 
 const S = { meta: null, roads: null, run: null, water: null, frame: 0, playing: false, frameMs: 1000,
-            view: { ...TOWN, pitch: 55, bearing: -20 }, pitch: 55, dots: null, last: 0, simT: 0 };
+            view: { ...TOWN, pitch: 55, bearing: -20, minZoom: LIMIT.minZoom, maxZoom: LIMIT.maxZoom }, pitch: 55, dots: null, last: 0, simT: 0 };
 const $ = id => document.getElementById(id);
 
 function speedColor(v, a = 255) {
@@ -292,11 +293,16 @@ async function load() {
   if (q.get('v') === '2d') $('v2d').onclick();
   if (q.get('v') === 'island') $('vIsland').onclick();
   $('loading').remove();
-  await selectRun();
-  {  // live rain is the default menu; ?tab=sim, or a link that names a scenario (?s=), opens the step 8 results
-    const q = new URLSearchParams(location.search);
-    setTab(q.get('tab') ? q.get('tab') === 'live' : !q.get('s'));
+  // live rain is the default menu; ?tab=sim, or a link that names a scenario (?s=), opens the step 8 results
+  const startLive = q.get('tab') ? q.get('tab') === 'live' : !q.get('s');
+  if (startLive) {  // until the live rain arrives the map shows a dry day at the hour nearest now, not a flood case
+    L.period = nearestPeriod();
+    $('period').value = L.period; $('period').onchange();
+    $('scenario').value = 'dry';
+    S.frame = S.meta.warmup_frames + Math.floor(new Date().getMinutes() / 5);
   }
+  await selectRun();
+  setTab(startLive);
   requestAnimationFrame(tick);
 }
 
@@ -505,13 +511,15 @@ async function live() {
     const series = await Promise.all(all.filter(r => r.rain_1h != null).map(r =>
       fetch(`${TW}rain_24h_graph?station_type=tele_station&station_id=${r.station.id}`).then(x => x.json())
         .then(x => ({ name: r.station.tele_station_name.th, data: x.data || [] })).catch(() => null)));
-    const byHour = {};  // hour -> [max mm, station]
+    const byHour = {};  // hour -> [max mm, station, stations with rain, stations reporting]
     for (const s of series.filter(Boolean)) for (const h of s.data) {
       if (h.rainfall_value == null) continue;
-      const cur = byHour[h.rainfall_datetime];
-      if (!cur || h.rainfall_value > cur[0]) byHour[h.rainfall_datetime] = [h.rainfall_value, s.name];
+      const cur = byHour[h.rainfall_datetime] || (byHour[h.rainfall_datetime] = [-1, '', 0, 0]);
+      if (h.rainfall_value > cur[0]) { cur[0] = h.rainfall_value; cur[1] = s.name; }
+      cur[2] += h.rainfall_value >= RAIN_MIN;
+      cur[3] += 1;
     }
-    L.hours = Object.keys(byHour).sort().map(t => ({ t, mm: byHour[t][0], at: byHour[t][1] }));
+    L.hours = Object.keys(byHour).sort().map(t => ({ t, mm: byHour[t][0], at: byHour[t][1], wet: byHour[t][2], of: byHour[t][3] }));
     L.stamp = Date.now();
     showLive();
     render();
@@ -537,7 +545,9 @@ function showLive() {
   $('liveMain').textContent = raining ? `ฝนกำลังตก · ต่อเนื่องมา ${n} ชม.${more}` : `ตอนนี้ไม่มีฝน · หยุดมา ${n} ชม.${more}`;
   $('liveLevel').hidden = !raining;
   $('liveLevel').textContent = names[L.cls];
-  $('liveSub').innerHTML = (raining ? `ตกมากที่สุดที่ <b>${last.at}</b> ${last.mm} มม. ในชั่วโมงล่าสุด<br>` : '') +
+  const spotty = raining && last.wet <= Math.max(2, last.of / 4);  // rain at only a few stations
+  $('liveSub').innerHTML = (raining ? `ชั่วโมงล่าสุดฝนตก <b>${last.wet} จาก ${last.of} สถานี</b>` +
+      (spotty ? ' (ตกเป็นบางจุด ที่อื่นอาจไม่มีฝน)' : '') + `<br>ตกมากที่สุดที่ <b>${last.at}</b> ${last.mm} มม.<br>` : '') +
     `24 ชม. ที่ผ่านมา ฝนตก ${wet24} ชม. · ฝนสะสมมากที่สุด ${top24 ? top24.r24 + ' มม. ที่' + top24.name : '–'}`;
   $('liveTime').textContent = `ข้อมูลฝนถึง ${last.t.slice(11)} น. (${+last.t.slice(8, 10)}/${+last.t.slice(5, 7)}) จาก ThaiWater · อัปเดตเองทุก 10 นาที`;
   const lastDay = h.slice(-24), mx = Math.max(6.35, ...lastDay.map(x => x.mm));
@@ -565,7 +575,7 @@ function showLive() {
   $('liveImpact').hidden = false;
   $('liveImpact').innerHTML = L.cls === 'dry'
     ? `<b>การจราจร:</b> แผนที่แสดงวันไม่มีฝนช่วง ${P} น. (ค่าประมาณจากแบบจำลอง)`
-    : `<b>การจราจร:</b> ถ้า${names[L.cls]}ตกทั่วเกาะช่วง ${P} น. แบบจำลองประมาณว่ารถช้าลงราว ` +
+    : `<b>การจราจร:</b> แผนที่ใช้ระดับของสถานีที่ฝนมากที่สุด ถ้า${names[L.cls]}ตกทั่วเกาะช่วง ${P} น. แบบจำลองประมาณว่ารถช้าลงราว ` +
       `<b>${Math.abs(Math.round(100 * (v.speed_kmh / v0.speed_kmh - 1)))}%</b> และเดินทางนานขึ้นราว <b>${trip}%</b> เทียบวันไม่มีฝน`;
   $('liveAdvice').hidden = !L.flood;
   $('liveAdvice').innerHTML = '<b>ฝนสะสมมาก</b> อาจมีน้ำขังในที่ต่ำ ถนนที่มีน้ำขัง: ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย';
@@ -593,7 +603,6 @@ $('liveFlood').onclick = () => applyLive('heavy_reports');
 
 // ---- falling rain drops: decoration only, density by the rain class of the scenario on the map ----
 const DROPS = { dry: 0, light: 350, medium: 1000, heavy: 2200 };  // drops on a 1600x1000 screen
-const DROPS_3D = { dry: 0, light: 1500, medium: 4000, heavy: 9000 };  // drops in the 3D box around the view
 const RAIN_TOP = 700;  // m above ground where 3D drops start
 const fx = { drops: [], last: 0, w: [], wn: 0 };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -613,7 +622,7 @@ function rainFx(now) {
   const cls = rainCls(), on = $('lDrops').checked, in3d = (S.view.pitch || 0) > 5;
   const dt0 = fx.last ? Math.min(50, now - fx.last) : 16;
   if (in3d) {  // drops as short lines in world space, so they get perspective; the 2D overlay is cleared
-    rain3d(on ? DROPS_3D[cls] : 0, dt0, cls);
+    rain3d(on ? DROPS[cls] : 0, dt0, cls);
     fx.last = now;
     requestAnimationFrame(rainFx);
     return;
@@ -644,9 +653,11 @@ function rainFx(now) {
 }
 requestAnimationFrame(rainFx);
 
-function rain3d(want, dt, cls) {
+function rain3d(per, dt, cls) {
   const v = S.view, deg = 360 / (256 * 2 ** v.zoom);  // degrees per screen pixel at this zoom
   const hx = innerWidth * deg * 0.9, hy = innerHeight * deg * 1.4;  // a little wider than the screen (far side in 3D)
+  // same density as the 2D overlay: `per` drops per 1600x1000 px of ground, over the whole box (about 5 screens)
+  const want = Math.min(15000, Math.round(per * (2 * hx / deg) * (2 * hy / deg) / 1.6e6));
   const spawn = d => { d.lon = v.longitude + (Math.random() * 2 - 1) * hx; d.lat = v.latitude + (Math.random() * 2 - 1) * hy;
                        d.z = Math.random() * RAIN_TOP; d.v = 0.12 + Math.random() * 0.08; return d; };
   while (fx.w.length < want) fx.w.push(spawn({}));
@@ -727,7 +738,12 @@ function tooltip({ object, layer }) {
 
 const deckgl = new deck.DeckGL({ container: 'map', views: new deck.MapView({ repeat: false }),
   initialViewState: S.view, controller: true, getTooltip: tooltip,
-  onViewStateChange: ({ viewState }) => { S.view = viewState; }, onAfterRender: placeLabels });
+  onViewStateChange: ({ viewState }) => {  // returned view state wins: the camera cannot leave the island area
+    const c = (v, [a, b]) => Math.min(b, Math.max(a, v));
+    S.view = { ...viewState, longitude: c(viewState.longitude, LIMIT.lon), latitude: c(viewState.latitude, LIMIT.lat),
+               zoom: c(viewState.zoom, [LIMIT.minZoom, LIMIT.maxZoom]) };
+    return S.view;
+  }, onAfterRender: placeLabels });
 
 function placeLabels() {  // HTML labels: deck.gl text does not shape Thai vowels and tone marks
   const vp = deckgl.getViewports()[0], box = $('labels');
