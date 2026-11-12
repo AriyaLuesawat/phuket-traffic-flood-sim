@@ -42,7 +42,7 @@
   .legend { font-size: 12.5px; line-height: 1.8; margin-top: 8px; }
   .sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px;
         box-shadow: 0 0 6px currentColor; }
-  #time { left: 12px; right: 12px; bottom: 16px; margin: 0 auto; max-width: 860px; }
+  #time { left: 12px; right: 12px; bottom: 22px; margin: 0 auto; max-width: 860px; }
   #clock { font-weight: 600; min-width: 150px; color: var(--cyan); }
   #slider { flex: 1; accent-color: var(--cyan); min-width: 120px; }
   #chart { width: 100%; height: 90px; display: block; margin-top: 6px; }
@@ -51,6 +51,8 @@
   .deck-tooltip { font-family: 'Sarabun', system-ui, sans-serif !important; font-size: 13px !important;
                   background: rgba(8, 12, 22, 0.95) !important; border: 1px solid var(--line); border-radius: 8px;
                   max-width: 280px; color: var(--fg) !important; }
+  #credit { position: absolute; right: 8px; bottom: 2px; font-size: 10.5px; color: var(--muted); z-index: 1; }
+  #credit a { color: var(--muted); }
   .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
   #ctl.min > :not(.head) { display: none; }
   #ctl.min .sub { display: none; }
@@ -68,6 +70,7 @@
 <body>
 <div id="map"></div>
 <div id="labels"></div>
+<div id="credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · FABDEM · ESA WorldCover · ERA5 · <a href="https://github.com/AriyaLuesawat/phuket-traffic-flood-sim" target="_blank" rel="noopener">ที่มาและวิธีการ</a></div>
 <div id="loading">กำลังโหลดข้อมูล…</div>
 
 <div id="ctl" class="panel">
@@ -164,11 +167,11 @@ function speedColor(v, a = 255) {
 }
 
 async function load() {
-  const [meta, rj, rb, wj, wb, ter, bld, base] = await Promise.all([
+  const [meta, rj, rb, wj, wb, ter, base] = await Promise.all([
     fetch(D + 'meta.json').then(r => r.json()), fetch(D + 'roads.json').then(r => r.json()),
     fetch(D + 'roads.bin').then(r => r.arrayBuffer()), fetch(D + 'water.json').then(r => r.json()),
     fetch(D + 'water.bin').then(r => r.arrayBuffer()), fetch(D + 'terrain.json').then(r => r.json()),
-    fetch(D + 'buildings.json').then(r => r.json()), fetch(D + 'basemap.json').then(r => r.json())]);
+    fetch(D + 'basemap.json').then(r => r.json())]);
   S.meta = meta;
   S.base = base;
   $('labels').innerHTML = base.places.map(p => `<div class="${p.kind}">${p.kind === 'city' ? 'ตัวเมืองภูเก็ต' : p.name}</div>`).join('');
@@ -202,7 +205,6 @@ async function load() {
   }
   S.water = { n: wn, depth: wd, cells, meta: wj };
   S.terrain = ter.map(l => l.map(p => [p[0], p[1], p[2] * EXAG]));
-  S.buildings = bld.map(b => ({ poly: b[0].map(p => [p[0], p[1], p[2] * EXAG]), h: b[1], tagged: b[2] }));
   setupControls();
   const q = new URLSearchParams(location.search);  // ?p=period&s=scenario&f=frame&v=2d|island
   if (q.get('p')) { $('period').value = q.get('p'); $('period').onchange(); }
@@ -365,6 +367,14 @@ function wetRoads(key, dep, base) {  // edges with >= 0.1 m of water in this fra
   return wetCache.edges;
 }
 
+let bldLoading = null;
+function loadBuildings() {  // 13 MB, only needed in 3D: fetched the first time the layer is switched on
+  bldLoading = bldLoading || fetch(D + 'buildings.json').then(r => r.json()).then(bld => {
+    S.buildings = bld.map(b => ({ poly: b[0].map(p => [p[0], p[1], p[2] * EXAG]), h: b[1], tagged: b[2] }));
+    render();
+  });
+}
+
 function render() {
   if (!S.run) return;
   const { n } = S.roads, k = S.frame, base = k * n, sp = S.run.speed, dep = S.run.depth, trig = `${S.run.p}${S.run.s}${k}`;
@@ -377,7 +387,8 @@ function render() {
       const d = waterDepthCm(c.i);
       return d < 10 ? [0, 0, 0, 0] : d < 30 ? [60, 120, 255, 45] : [61, 123, 255, 85];
     }, updateTriggers: { getFillColor: trig }, parameters: { depthTest: false } }));
-  if ($('lBld').checked) layers.push(new deck.PolygonLayer({ id: 'buildings', data: S.buildings,
+  if ($('lBld').checked && !S.buildings) loadBuildings();
+  if ($('lBld').checked && S.buildings) layers.push(new deck.PolygonLayer({ id: 'buildings', data: S.buildings,
     getPolygon: b => b.poly, extruded: true, wireframe: true, filled: false, getElevation: b => b.h * EXAG,
     getLineColor: b => b.tagged ? [190, 90, 255, 140] : [140, 70, 220, 40], parameters: ADD }));
   if ($('lRoads').checked) {
