@@ -57,6 +57,8 @@
           background: rgba(30, 70, 140, 0.18); }
   #live .big { font-size: 15px; font-weight: 600; }
   #live .small { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 3px; }
+  #liveRec { margin-top: 6px; border-top: 1px solid rgba(80,160,255,0.3); padding-top: 6px; font-size: 12.5px; line-height: 1.55; }
+  #liveRec b { color: #9cc3ff; }
   #live button { margin-top: 6px; font-size: 12.5px; }
   #liveBars { display: flex; gap: 1px; align-items: flex-end; height: 26px; margin-top: 5px; }
   #liveBars i { flex: 1; background: #4d8dff; min-height: 1px; }
@@ -92,7 +94,8 @@
     <div class="big" id="liveMain">กำลังโหลดข้อมูลฝน…</div>
     <div class="small" id="liveSub"></div>
     <div id="liveBars" title="ฝนสูงสุดของทุกสถานีในแต่ละชั่วโมง ย้อนหลัง 24 ชม."></div>
-    <button id="liveUse" disabled>ดูผลจำลองที่ใกล้กับฝนตอนนี้</button>
+    <div id="liveRec"></div>
+    <div class="row"><button id="liveUse" disabled>ใช้ฝนตอนนี้กับแผนที่</button><button id="liveFlood" hidden>ดูกรณีมีน้ำบนถนน</button></div>
     <div class="small" id="liveNote"></div>
   </div>
 
@@ -397,7 +400,7 @@ function loadBuildings() {  // 13 MB, only needed in 3D: fetched the first time 
 // ---- live rain: ThaiWater public API (measured station rain, hourly; CORS allowed) ----
 const TW = 'https://api-v3.thaiwater.net/api/v1/thaiwater30/public/';
 const RAIN_MIN = 0.1;  // mm in an hour counted as rain (same lower bound as the light class, step 5)
-const L = { stations: [], hours: [], cls: null, stamp: 0 };
+const L = { stations: [], hours: [], cls: null, stamp: 0, auto: !new URLSearchParams(location.search).get('s') };
 
 function rainClass(mm) {  // hourly classes of HCM 2010 used in step 5
   return mm < RAIN_MIN ? 'dry' : mm < 2.54 ? 'light' : mm < 6.35 ? 'medium' : 'heavy';
@@ -448,19 +451,43 @@ function showLive() {
   const lastDay = h.slice(-24), mx = Math.max(6.35, ...lastDay.map(x => x.mm));
   $('liveBars').innerHTML = lastDay.map(x =>
     `<i class="${x.mm >= RAIN_MIN ? '' : 'z'}" style="height:${Math.max(4, 100 * x.mm / mx)}%" title="${x.t.slice(5)} น.: ${x.mm} มม."></i>`).join('');
+  // what this rain means in the work done so far
+  const maxDay = Math.max(0, ...L.stations.map(x => x.r24 || 0));
+  const day = maxDay < 0.1 ? 'ไม่มีฝน' : maxDay <= 10 ? 'ฝนเล็กน้อย' : maxDay <= 35 ? 'ฝนปานกลาง' : maxDay <= 90 ? 'ฝนหนัก' : 'ฝนหนักมาก';
+  const FACT = { dry: 'ไม่ลด', light: 'ความเร็ว ×0.98 ความจุ ×0.98', medium: 'ความเร็ว ×0.94 ความจุ ×0.93',
+                 heavy: 'ความเร็ว ×0.93 ความจุ ×0.86' };
+  L.period = nearestPeriod();
+  const st = S.meta.step8, P = S.meta.periods[L.period];
+  const v = st[`${L.period}_${L.cls}`], v0 = st[`${L.period}_dry`];
+  const chg = v && v0 && L.cls !== 'dry' ? ` ความเร็วเฉลี่ย ${v.speed_kmh} กม./ชม. (${(100 * (v.speed_kmh / v0.speed_kmh - 1)).toFixed(1)}% จากวันไม่มีฝน)` : v ? ` ความเร็วเฉลี่ย ${v.speed_kmh} กม./ชม.` : '';
+  L.flood = maxDay > 90;  // ASSUMPTION of this work: daily "very heavy" (TMD > 90 mm) at a station → show the water cases
+  $('liveRec').innerHTML =
+    `<b>ควรใช้ในแผนที่: ${names[L.cls]}</b> (ระดับรายชั่วโมงของ HCM 2010 จากสถานีที่ฝนมากที่สุดในชั่วโมงล่าสุด)<br>` +
+    `ตรงกับ <b>ขั้นที่ 8 สถานการณ์ "${names[L.cls]}"</b> ช่วงเวลาที่ใกล้ตอนนี้ (${P} น.) ` +
+    `ใช้ค่าปรับจากขั้นที่ 5: ${FACT[L.cls]} ·${chg}<br>` +
+    `ฝนสะสม 24 ชม. สูงสุด ${maxDay} มม. = <b>${day}</b> ตามเกณฑ์รายวันของกรมอุตุนิยมวิทยา<br>` +
+    (L.flood ? `<b>ฝนหนักมาก: อาจมีน้ำขังบนถนน</b> ดูกรณีน้ำบนถนนของขั้นที่ 7–8 ได้ (ค่าต่ำ = น้ำจุดข่าว, ค่าสูง = น้ำแบบจำลอง)`
+             : `ยังไม่ถึงฝนหนักมาก (> 90 มม./24 ชม.) จึงยังไม่ใช้กรณีน้ำบนถนน`) +
+    `<br><span style="color:var(--muted)">เกณฑ์ 90 มม. สำหรับกรณีน้ำบนถนนเป็นเกณฑ์ที่งานนี้ตั้ง ยังไม่ได้ตรวจกับน้ำท่วมจริง</span>`;
   $('liveUse').disabled = false;
-  $('liveUse').textContent = `ดูผลจำลอง: ${names[L.cls]} ช่วงเวลาใกล้ตอนนี้`;
+  $('liveFlood').hidden = !L.flood;
   $('liveNote').textContent = 'นับชั่วโมงที่สถานีใดสถานีหนึ่งมีฝน ≥ 0.1 มม. · ผลจำลองเป็นชุดที่รันไว้ล่วงหน้าตามระดับฝน ' +
-    '(ฝนเท่ากันทั้งเกาะ ไม่มีน้ำบนถนน) ไม่ใช่การจำลองสด และไม่ใช่สภาพจราจรจริงตอนนี้';
+    '(ฝนเท่ากันทั้งเกาะ) ไม่ใช่การจำลองสด และไม่ใช่สภาพจราจรจริงตอนนี้';
+  if (L.auto) { L.auto = false; applyLive(L.cls); }  // first load without ?s=: the map follows the rain now
 }
 
-$('liveUse') && ($('liveUse').onclick = () => {
+function nearestPeriod() {
   const now = new Date(), hr = now.getHours() + now.getMinutes() / 60, P = S.meta.periods;
   const dist = p => { const d = Math.abs(hr - parseInt(P[p])); return Math.min(d, 24 - d); };
-  const period = Object.keys(P).sort((a, b) => dist(a) - dist(b))[0];
-  $('period').value = period; $('period').onchange();
-  $('scenario').value = L.cls; selectRun();
-});
+  return Object.keys(P).sort((a, b) => dist(a) - dist(b))[0];
+}
+
+function applyLive(scenario) {
+  $('period').value = L.period; $('period').onchange();
+  $('scenario').value = scenario; selectRun();
+}
+$('liveUse').onclick = () => applyLive(L.cls);
+$('liveFlood').onclick = () => applyLive('heavy_reports');
 
 function render() {
   if (!S.run) return;
