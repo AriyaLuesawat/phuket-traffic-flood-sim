@@ -65,13 +65,14 @@
   .helpbox { font-size: 12.5px; line-height: 1.6; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
   .helpbox ol { margin: 4px 0 6px; padding-left: 18px; }
   .helpbox[hidden] { display: none; }
+  .now { font-size: 13px; color: var(--cyan); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
   .status { display: flex; gap: 10px; align-items: center; }
   #liveIcon { font-size: 30px; line-height: 1; }
   .badge { display: inline-block; margin-top: 3px; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #1d3f7a; color: #cfe0ff; }
   .barsx { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); }
   .impact { font-size: 13px; line-height: 1.55; margin-top: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,0.05); }
   .impact.flood { background: rgba(47,123,255,0.18); border: 1px solid rgba(47,123,255,0.5); }
-  .impact[hidden] { display: none; }
+  .impact[hidden], .badge[hidden] { display: none; }
   details { margin-top: 8px; font-size: 12px; color: var(--muted); }
   details summary { cursor: pointer; }
   .lgtitle { color: var(--muted); font-size: 12px; }
@@ -141,7 +142,9 @@
     <button id="tabSim" role="tab" class="on" aria-selected="true">สถานการณ์จำลอง</button>
   </div>
 
-  <div id="live" aria-live="polite">
+  <div id="live">
+    <div class="now" id="nowClock"></div>
+    <div aria-live="polite">
     <div class="status"><span id="liveIcon" aria-hidden="true">⏳</span>
       <div><div class="big" id="liveMain">กำลังโหลดข้อมูลฝน…</div><span class="badge" id="liveLevel" hidden></span></div></div>
     <div class="small" id="liveSub"></div>
@@ -152,6 +155,7 @@
     <button id="liveFlood" hidden>ดูถนนที่อาจมีน้ำขัง</button>
     <div class="small" id="liveTime"></div>
     <details><summary>รายละเอียดและข้อจำกัด</summary><div id="liveRec"></div><div class="small" id="liveNote"></div></details>
+    </div>
   </div>
 
   <div id="simPane">
@@ -478,6 +482,13 @@ function setTab(isLive) {  // two menus: the step 8 results (as before) and the 
                                      : 'ลองเลือกช่วงเวลาและระดับฝน ดูว่ารถช้าลงแค่ไหน (ผลจากแบบจำลอง)';
   render();
 }
+function tickNow() {  // wall clock in Phuket (Asia/Bangkok), Thai date with the Buddhist year
+  const d = new Date(), tz = { timeZone: 'Asia/Bangkok' };
+  $('nowClock').textContent = 'เวลาปัจจุบัน ' + d.toLocaleTimeString('th-TH', { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+    ' น. · ' + d.toLocaleDateString('th-TH', { ...tz, weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+}
+tickNow();
+setInterval(tickNow, 1000);
 $('helpBtn').onclick = () => { const open = $('help').hidden; $('help').hidden = !open; $('helpBtn').setAttribute('aria-expanded', String(open)); };
 
 function rainClass(mm) {  // hourly classes of HCM 2010 used in step 5
