@@ -53,6 +53,14 @@
                   max-width: 280px; color: var(--fg) !important; }
   #credit { position: absolute; right: 8px; bottom: 2px; font-size: 10.5px; color: var(--muted); z-index: 1; }
   #credit a { color: var(--muted); }
+  #live { border: 1px solid rgba(80, 160, 255, 0.45); border-radius: 8px; padding: 7px 9px; margin-top: 8px;
+          background: rgba(30, 70, 140, 0.18); }
+  #live .big { font-size: 15px; font-weight: 600; }
+  #live .small { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 3px; }
+  #live button { margin-top: 6px; font-size: 12.5px; }
+  #liveBars { display: flex; gap: 1px; align-items: flex-end; height: 26px; margin-top: 5px; }
+  #liveBars i { flex: 1; background: #4d8dff; min-height: 1px; }
+  #liveBars i.z { background: rgba(127, 147, 171, 0.25); }
   .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
   #ctl.min > :not(.head) { display: none; }
   #ctl.min .sub { display: none; }
@@ -78,6 +86,14 @@
     <div><h1>ภูเก็ต: ฝน น้ำท่วม และการจราจร</h1>
     <div class="sub">ผลจากแบบจำลองการจราจร ไม่ใช่ข้อมูลจริง · เล่นย้อนหลังทีละ 5 นาที</div></div>
     <button id="fold" aria-label="ย่อหรือขยายแผงควบคุม" aria-expanded="true">–</button>
+  </div>
+  <div id="live" aria-live="polite">
+    <div class="small">ฝนตอนนี้จากเครื่องวัดฝนจริงในภูเก็ต (ThaiWater)</div>
+    <div class="big" id="liveMain">กำลังโหลดข้อมูลฝน…</div>
+    <div class="small" id="liveSub"></div>
+    <div id="liveBars" title="ฝนสูงสุดของทุกสถานีในแต่ละชั่วโมง ย้อนหลัง 24 ชม."></div>
+    <button id="liveUse" disabled>ดูผลจำลองที่ใกล้กับฝนตอนนี้</button>
+    <div class="small" id="liveNote"></div>
   </div>
 
   <label class="f" for="period">ช่วงเวลา</label>
@@ -108,6 +124,7 @@
     <label><input type="checkbox" id="lTer"> ภูมิประเทศ</label>
     <label><input type="checkbox" id="lWater" checked> น้ำ</label>
     <label><input type="checkbox" id="lNews" checked> จุดข่าวน้ำท่วม 29 ต.ค. 2569</label>
+    <label><input type="checkbox" id="lRain" checked> สถานีวัดฝน (สด)</label>
   </div>
 
   <div class="legend">
@@ -214,6 +231,8 @@ async function load() {
   if (q.get('v') === 'island') $('vIsland').onclick();
   $('loading').remove();
   await selectRun();
+  live();
+  setInterval(live, 10 * 60 * 1000);  // stations report every hour; check every 10 minutes
   requestAnimationFrame(tick);
 }
 
@@ -254,7 +273,7 @@ function setupControls() {
   $('v3d').onclick = () => view(55, -20);
   $('vTown').onclick = () => view(S.view.pitch, S.view.bearing, TOWN);
   $('vIsland').onclick = () => view(S.view.pitch, S.view.bearing, ISLAND);
-  for (const id of ['lCars', 'lRoads', 'lBld', 'lTer', 'lWater', 'lNews']) $(id).onchange = render;
+  for (const id of ['lCars', 'lRoads', 'lBld', 'lTer', 'lWater', 'lNews', 'lRain']) $(id).onchange = render;
   const fold = min => { $('ctl').classList.toggle('min', min); $('fold').textContent = min ? '+' : '–';
                         $('fold').setAttribute('aria-expanded', String(!min)); };
   $('fold').onclick = () => fold(!$('ctl').classList.contains('min'));
@@ -375,6 +394,74 @@ function loadBuildings() {  // 13 MB, only needed in 3D: fetched the first time 
   });
 }
 
+// ---- live rain: ThaiWater public API (measured station rain, hourly; CORS allowed) ----
+const TW = 'https://api-v3.thaiwater.net/api/v1/thaiwater30/public/';
+const RAIN_MIN = 0.1;  // mm in an hour counted as rain (same lower bound as the light class, step 5)
+const L = { stations: [], hours: [], cls: null, stamp: 0 };
+
+function rainClass(mm) {  // hourly classes of HCM 2010 used in step 5
+  return mm < RAIN_MIN ? 'dry' : mm < 2.54 ? 'light' : mm < 6.35 ? 'medium' : 'heavy';
+}
+
+async function live() {
+  try {
+    const all = (await fetch(TW + 'rain_24h').then(r => r.json())).data.filter(r => r.geocode.province_code === '83');
+    L.stations = all.map(r => ({ id: r.station.id, name: r.station.tele_station_name.th, agency: r.agency.agency_shortname.th,
+      lat: r.station.tele_station_lat, lon: r.station.tele_station_long, r1: r.rain_1h ?? null, r24: r.rain_24h,
+      time: r.rainfall_datetime.slice(5) }));
+    // hourly series of the telemetry stations (the others report only daily totals)
+    const series = await Promise.all(all.filter(r => r.rain_1h != null).map(r =>
+      fetch(`${TW}rain_24h_graph?station_type=tele_station&station_id=${r.station.id}`).then(x => x.json())
+        .then(x => ({ name: r.station.tele_station_name.th, data: x.data || [] })).catch(() => null)));
+    const byHour = {};  // hour -> [max mm, station]
+    for (const s of series.filter(Boolean)) for (const h of s.data) {
+      if (h.rainfall_value == null) continue;
+      const cur = byHour[h.rainfall_datetime];
+      if (!cur || h.rainfall_value > cur[0]) byHour[h.rainfall_datetime] = [h.rainfall_value, s.name];
+    }
+    L.hours = Object.keys(byHour).sort().map(t => ({ t, mm: byHour[t][0], at: byHour[t][1] }));
+    L.stamp = Date.now();
+    showLive();
+    render();
+  } catch (e) {
+    $('liveMain').textContent = 'โหลดข้อมูลฝนไม่ได้';
+    $('liveSub').textContent = 'ThaiWater ไม่ตอบ ลองใหม่ภายหลัง (' + e.message + ')';
+  }
+}
+
+function showLive() {
+  const h = L.hours;
+  if (!h.length) { $('liveMain').textContent = 'ยังไม่มีข้อมูลฝนรายชั่วโมง'; return; }
+  const last = h[h.length - 1], raining = last.mm >= RAIN_MIN;
+  let n = 0;  // consecutive hours, ending at the latest hour, with rain at any station (or without, if dry now)
+  for (let i = h.length - 1; i >= 0 && (h[i].mm >= RAIN_MIN) === raining; i--) n++;
+  const span = h.length;
+  const wet24 = h.slice(-24).filter(x => x.mm >= RAIN_MIN).length;
+  const top24 = L.stations.reduce((a, b) => (b.r24 || 0) > (a.r24 || 0) ? b : a, L.stations[0]);
+  const names = { dry: 'ไม่มีฝน', light: 'ฝนเล็กน้อย', medium: 'ฝนปานกลาง', heavy: 'ฝนหนัก' };
+  L.cls = rainClass(last.mm);
+  const more = n >= span ? ' (อย่างน้อย เท่าที่มีข้อมูลย้อนหลัง)' : '';
+  $('liveMain').textContent = raining ? `ฝนตกต่อเนื่องมาแล้ว ${n} ชม.${more}` : `ตอนนี้ไม่มีฝน · หยุดตกมาแล้ว ${n} ชม.${more}`;
+  $('liveSub').innerHTML = `ชม. ที่สิ้นสุด ${last.t.slice(11)} น. ${last.t.slice(8, 10)}/${last.t.slice(5, 7)}: ` +
+    (raining ? `สูงสุด ${last.mm} มม. ที่${last.at} (${names[L.cls]})` : 'ทุกสถานีไม่มีฝน') +
+    `<br>24 ชม. ที่ผ่านมามีฝน ${wet24} ชม. · สะสมมากที่สุด ${top24 ? top24.r24 + ' มม. ที่' + top24.name : '–'}`;
+  const lastDay = h.slice(-24), mx = Math.max(6.35, ...lastDay.map(x => x.mm));
+  $('liveBars').innerHTML = lastDay.map(x =>
+    `<i class="${x.mm >= RAIN_MIN ? '' : 'z'}" style="height:${Math.max(4, 100 * x.mm / mx)}%" title="${x.t.slice(5)} น.: ${x.mm} มม."></i>`).join('');
+  $('liveUse').disabled = false;
+  $('liveUse').textContent = `ดูผลจำลอง: ${names[L.cls]} ช่วงเวลาใกล้ตอนนี้`;
+  $('liveNote').textContent = 'นับชั่วโมงที่สถานีใดสถานีหนึ่งมีฝน ≥ 0.1 มม. · ผลจำลองเป็นชุดที่รันไว้ล่วงหน้าตามระดับฝน ' +
+    '(ฝนเท่ากันทั้งเกาะ ไม่มีน้ำบนถนน) ไม่ใช่การจำลองสด และไม่ใช่สภาพจราจรจริงตอนนี้';
+}
+
+$('liveUse') && ($('liveUse').onclick = () => {
+  const now = new Date(), hr = now.getHours() + now.getMinutes() / 60, P = S.meta.periods;
+  const dist = p => { const d = Math.abs(hr - parseInt(P[p])); return Math.min(d, 24 - d); };
+  const period = Object.keys(P).sort((a, b) => dist(a) - dist(b))[0];
+  $('period').value = period; $('period').onchange();
+  $('scenario').value = L.cls; selectRun();
+});
+
 function render() {
   if (!S.run) return;
   const { n } = S.roads, k = S.frame, base = k * n, sp = S.run.speed, dep = S.run.depth, trig = `${S.run.p}${S.run.s}${k}`;
@@ -412,11 +499,19 @@ function render() {
     getPosition: d => [d.lon, d.lat, 5], radiusUnits: 'pixels', getRadius: 9, stroked: true, filled: true,
     getFillColor: [255, 255, 255, 25], getLineColor: [255, 255, 255, 220], lineWidthUnits: 'pixels', getLineWidth: 2,
     pickable: true, parameters: { depthTest: false } }));
+  if ($('lRain').checked && L.stations.length) layers.push(new deck.ScatterplotLayer({ id: 'rain', data: L.stations,
+    getPosition: d => [d.lon, d.lat, 8], radiusUnits: 'pixels', getRadius: d => 5 + Math.min(14, 1.6 * (d.r1 || 0)),
+    stroked: true, getFillColor: d => d.r1 >= 0.1 ? [77, 141, 255, 200] : d.r1 === 0 ? [127, 147, 171, 60] : [0, 0, 0, 0],
+    getLineColor: [210, 225, 255, 220], lineWidthUnits: 'pixels', getLineWidth: 1.2, pickable: true,
+    updateTriggers: { getRadius: L.stamp, getFillColor: L.stamp }, parameters: { depthTest: false } }));
   deckgl.setProps({ layers });
 }
 
 function tooltip({ object, layer }) {
   if (!object || !layer) return null;
+  if (layer.id === 'rain') return { html: `<b>${object.name}</b> (${object.agency})<br>` +
+    `ฝน 1 ชม. ล่าสุด: ${object.r1 == null ? 'ไม่มีข้อมูล' : object.r1 + ' มม.'}<br>ฝน 24 ชม.: ${object.r24 ?? '–'} มม.<br>` +
+    `เวลาข้อมูล: ${object.time} น.` };
   if (layer.id === 'news') return { html: `<b>${object.id} ${object.location}</b><br>ข่าวรายงาน: ${object.severity}<br>29 ต.ค. 2569` };
   if (layer.id !== 'roads') return null;
   const e = object.i, k = S.frame * S.roads.n + e, r = S.roads.meta;
