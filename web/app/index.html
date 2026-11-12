@@ -16,6 +16,7 @@
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
                font-family: 'Sarabun', system-ui, sans-serif; font-size: 14px; overflow: hidden; }
   #map { position: absolute; inset: 0; }
+  #rainfx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
   #labels div { position: absolute; transform: translate(-50%, -50%); font-size: 13px; color: rgba(216,230,245,0.75);
                 text-shadow: 0 0 3px #05070d, 0 0 6px #05070d; white-space: nowrap; }
@@ -80,6 +81,7 @@
 <body>
 <div id="map"></div>
 <div id="labels"></div>
+<canvas id="rainfx" aria-hidden="true"></canvas>
 <div id="credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · FABDEM · ESA WorldCover · ERA5 · <a href="https://github.com/AriyaLuesawat/phuket-traffic-flood-sim" target="_blank" rel="noopener">ที่มาและวิธีการ</a></div>
 <div id="loading">กำลังโหลดข้อมูล…</div>
 
@@ -128,6 +130,7 @@
     <label><input type="checkbox" id="lWater" checked> น้ำ</label>
     <label><input type="checkbox" id="lNews" checked> จุดข่าวน้ำท่วม 29 ต.ค. 2569</label>
     <label><input type="checkbox" id="lRain" checked> สถานีวัดฝน (สด)</label>
+    <label><input type="checkbox" id="lDrops" checked> เม็ดฝน</label>
   </div>
 
   <div class="legend">
@@ -488,6 +491,45 @@ function applyLive(scenario) {
 }
 $('liveUse').onclick = () => applyLive(L.cls);
 $('liveFlood').onclick = () => applyLive('heavy_reports');
+
+// ---- falling rain drops: decoration only, density by the rain class of the scenario on the map ----
+const DROPS = { dry: 0, light: 140, medium: 420, heavy: 900 };  // drops on a 1600x1000 screen
+const fx = { drops: [], last: 0 };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function rainCls() {
+  const s = S.run ? S.run.s : 'dry';
+  return s.startsWith('heavy') ? 'heavy' : s;
+}
+function rainFx(now) {
+  const cv = $('rainfx'), dpr = Math.min(devicePixelRatio || 1, 2);
+  if (cv.width !== innerWidth * dpr || cv.height !== innerHeight * dpr) { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, innerWidth, innerHeight);
+  const cls = rainCls(), want = $('lDrops').checked ? Math.round(DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
+  while (fx.drops.length < want) fx.drops.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+                                                 v: 0.6 + Math.random() * 0.6, l: 8 + Math.random() * 10 });
+  fx.drops.length = want;
+  const dt = fx.last ? Math.min(50, now - fx.last) : 16;
+  fx.last = now;
+  const speed = cls === 'heavy' ? 1.25 : cls === 'medium' ? 1.0 : 0.8, wind = 0.18;
+  g.strokeStyle = 'rgba(180, 210, 255, 0.5)';
+  g.lineWidth = cls === 'heavy' ? 1.3 : 1;
+  g.beginPath();
+  for (const d of fx.drops) {
+    if (!reduceMotion) {
+      d.y += d.v * speed * dt;
+      d.x += d.v * speed * dt * wind;
+      if (d.y > innerHeight) { d.y = -d.l; d.x = Math.random() * innerWidth; }
+      if (d.x > innerWidth) d.x -= innerWidth;
+    }
+    g.moveTo(d.x, d.y);
+    g.lineTo(d.x - d.l * wind, d.y - d.l);
+  }
+  g.stroke();
+  requestAnimationFrame(rainFx);
+}
+requestAnimationFrame(rainFx);
 
 function render() {
   if (!S.run) return;
