@@ -62,14 +62,34 @@
   .tabs button { flex: 1; }
   #ctl:not(.live) #live { display: none; }
   #ctl.live #simPane { display: none; }
-  #liveRec { margin-top: 6px; border-top: 1px solid rgba(80,160,255,0.3); padding-top: 6px; font-size: 12.5px; line-height: 1.55; }
+  .helpbox { font-size: 12.5px; line-height: 1.6; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .helpbox ol { margin: 4px 0 6px; padding-left: 18px; }
+  .helpbox[hidden] { display: none; }
+  .status { display: flex; gap: 10px; align-items: center; }
+  #liveIcon { font-size: 30px; line-height: 1; }
+  .badge { display: inline-block; margin-top: 3px; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #1d3f7a; color: #cfe0ff; }
+  .barsx { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); }
+  .impact { font-size: 13px; line-height: 1.55; margin-top: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+  .impact.flood { background: rgba(47,123,255,0.18); border: 1px solid rgba(47,123,255,0.5); }
+  .impact[hidden] { display: none; }
+  details { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  details summary { cursor: pointer; }
+  .lgtitle { color: var(--muted); font-size: 12px; }
+  .ramp { display: flex; align-items: center; gap: 3px; }
+  .ramp i { width: 22px; height: 6px; border-radius: 2px; }
+  .ramp span { font-size: 12.5px; margin: 0 4px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 8px 0 6px; vertical-align: middle; }
+  .dot.ring { background: transparent; border: 2px solid #fff; }
+  #ctl:not(.live) .liveonly, #ctl.live .simonly { display: none; }
+  .legend { border-top: 1px solid var(--line); padding-top: 6px; }
+  #liveRec { margin-top: 6px; font-size: 12px; line-height: 1.55; }
   #liveRec b { color: #9cc3ff; }
   #live button { margin-top: 6px; font-size: 12.5px; }
   #liveBars { display: flex; gap: 1px; align-items: flex-end; height: 26px; margin-top: 5px; }
   #liveBars i { flex: 1; background: #4d8dff; min-height: 1px; }
   #liveBars i.z { background: rgba(127, 147, 171, 0.25); }
   .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  #ctl.min > :not(.head) { display: none; }
+  #ctl.min > :not(.head) { display: none !important; }
   #ctl.min .sub { display: none; }
   #chartX { position: relative; height: 14px; font-size: 10.5px; color: var(--muted); }
   #chartX span { position: absolute; top: 0; white-space: nowrap; }
@@ -101,59 +121,72 @@
 <div id="ctl" class="panel">
   <div class="head">
     <div><h1>ภูเก็ต: ฝน น้ำท่วม และการจราจร</h1>
-    <div class="sub">ผลจากแบบจำลองการจราจร ไม่ใช่ข้อมูลจริง · เล่นย้อนหลังทีละ 5 นาที</div></div>
-    <button id="fold" aria-label="ย่อหรือขยายแผงควบคุม" aria-expanded="true">–</button>
+    <div class="sub" id="subtitle">ฝนจริงจากสถานีวัด · การจราจรเป็นค่าประมาณจากแบบจำลอง</div></div>
+    <div class="row" style="flex-wrap:nowrap">
+      <button id="helpBtn" aria-expanded="false" aria-controls="help" title="วิธีใช้">?</button>
+      <button id="fold" aria-label="ย่อหรือขยายแผงควบคุม" aria-expanded="true">–</button>
+    </div>
+  </div>
+  <div id="help" class="helpbox" hidden>
+    <b>วิธีใช้</b>
+    <ol>
+      <li><b>ฝนตอนนี้</b>: ดูว่าภูเก็ตฝนตกไหม ตกมากี่ชั่วโมงแล้ว และแผนที่จะแสดงการจราจรที่คาดว่าจะเกิดกับฝนระดับนั้น</li>
+      <li><b>ลองสถานการณ์</b>: เลือกช่วงเวลาและระดับฝนเอง เพื่อเทียบว่ารถช้าลงแค่ไหน</li>
+      <li>กด ▶ ด้านล่างเพื่อดูการจราจรเปลี่ยนทีละ 5 นาที · ชี้ที่ถนนเพื่อดูความเร็ว · มุมขวาบนสลับ 2D/3D และเลือกชั้นข้อมูล</li>
+    </ol>
+    สีถนนเป็น<b>ผลจากแบบจำลอง</b> ไม่ใช่สภาพจราจรจริงตอนนี้ แบบจำลองไม่ปิดถนน ถนนที่มีน้ำขังจะแสดงว่า "ควรเลี่ยง"
   </div>
   <div class="tabs" role="tablist">
-    <button id="tabSim" role="tab" class="on" aria-selected="true">ผลจำลอง</button>
-    <button id="tabLive" role="tab" aria-selected="false">ฝนเรียลไทม์</button>
+    <button id="tabLive" role="tab" aria-selected="false">ฝนตอนนี้</button>
+    <button id="tabSim" role="tab" class="on" aria-selected="true">ลองสถานการณ์</button>
   </div>
+
   <div id="live" aria-live="polite">
-    <div class="small">ฝนตอนนี้จากเครื่องวัดฝนจริงในภูเก็ต (ThaiWater) · อัปเดตทุก 10 นาที</div>
-    <div class="big" id="liveMain">กำลังโหลดข้อมูลฝน…</div>
+    <div class="status"><span id="liveIcon" aria-hidden="true">⏳</span>
+      <div><div class="big" id="liveMain">กำลังโหลดข้อมูลฝน…</div><span class="badge" id="liveLevel" hidden></span></div></div>
     <div class="small" id="liveSub"></div>
-    <div id="liveBars" title="ฝนสูงสุดของทุกสถานีในแต่ละชั่วโมง ย้อนหลัง 24 ชม."></div>
-    <div id="liveRec"></div>
-    <div class="row"><button id="liveUse" disabled>ใช้ฝนตอนนี้กับแผนที่</button><button id="liveFlood" hidden>ดูกรณีมีน้ำบนถนน</button></div>
-    <div class="small" id="liveNote"></div>
+    <div id="liveBars" aria-hidden="true"></div>
+    <div class="barsx" aria-hidden="true"><span>24 ชม. ที่แล้ว</span><span>ตอนนี้</span></div>
+    <div class="impact" id="liveImpact" hidden></div>
+    <div class="impact flood" id="liveAdvice" hidden></div>
+    <button id="liveFlood" hidden>ดูถนนที่อาจมีน้ำขัง</button>
+    <div class="small" id="liveTime"></div>
+    <details><summary>รายละเอียดและข้อจำกัด</summary><div id="liveRec"></div><div class="small" id="liveNote"></div></details>
   </div>
+
   <div id="simPane">
-
-  <label class="f" for="period">ช่วงเวลา</label>
+  <label class="f" for="period">ช่วงเวลาของวัน</label>
   <select id="period"></select>
-  <label class="f" for="scenario">ระดับฝน / น้ำบนถนน</label>
+  <label class="f" for="scenario">สภาพฝน</label>
   <select id="scenario"></select>
+  <div class="impact" id="simImpact"></div>
   <div class="warn" id="warn"></div>
-
   <div class="stats">
-    <div class="stat"><b id="sSpeed">–</b><span>ความเร็วเฉลี่ยทั้งเกาะตอนนี้ (กม./ชม.)</span></div>
-    <div class="stat"><b id="sVeh">–</b><span>รถบนถนนตอนนี้ (คัน)</span></div>
-    <div class="stat"><b id="sMean">–</b><span>เฉลี่ยทั้งชั่วโมง จากการจำลอง 5 รอบ (กม./ชม.)</span></div>
-    <div class="stat"><b id="sAvoid">–</b><span>ถนนที่ควรเลี่ยงตอนนี้ (กม.)</span></div>
+    <div class="stat"><b id="sSpeed">–</b><span>ความเร็วเฉลี่ย ณ เวลานี้ (กม./ชม.)</span></div>
+    <div class="stat"><b id="sVeh">–</b><span>รถบนถนน (คัน)</span></div>
+    <div class="stat"><b id="sMean">–</b><span>ความเร็วเฉลี่ยทั้งชั่วโมง (กม./ชม.)</span></div>
+    <div class="stat"><b id="sAvoid">–</b><span>ถนนน้ำขัง ควรเลี่ยง (กม.)</span></div>
   </div>
   <svg id="chart" viewBox="0 0 320 90" preserveAspectRatio="none" role="img" aria-label="กราฟความเร็วเฉลี่ย"></svg>
   <div id="chartX"></div>
-  <div class="note" id="chartNote"></div>
+  <details><summary>รายละเอียดและข้อจำกัด</summary>
+    <div class="note" id="chartNote"></div>
+    <div class="note">
+      จุดแสง (ชั้น "รถ") แทนจำนวนรถเฉลี่ยบนถนนแต่ละเส้นในช่วง 5 นาทีนั้น <b>ไม่ใช่ตำแหน่งรถจริงรายคัน</b>
+      แผนที่และกราฟมาจากการจำลอง 1 รอบ ส่วนตัวเลขเฉลี่ยมาจาก 5 รอบที่สุ่มต่างกัน ·
+      ความสูงอาคารส่วนใหญ่ (95%) เป็นค่าสมมติเพื่อการแสดงผล · ภูมิประเทศจาก FABDEM · ไม่มีการปิดถนนในแบบจำลอง
+    </div>
+  </details>
+  </div>
 
   <div class="legend">
-    <div style="color:var(--muted)">ความเร็วบนถนนสายหลัก (กม./ชม.)</div>
-    <div><span class="sw" style="background:#2ecc71"></span>≥ 60 คล่อง</div>
-    <div><span class="sw" style="background:#a3d935"></span>40–60</div>
-    <div><span class="sw" style="background:#ffd23f"></span>20–40</div>
-    <div><span class="sw" style="background:#ff8c3d"></span>10–20</div>
-    <div><span class="sw" style="background:#ff3b3b"></span>&lt; 10 รถติด</div>
-    <div><span class="sw" style="background:#7887a0"></span>ไม่มีรถผ่านใน 5 นาทีนั้น</div>
-    <div><span class="sw" style="background:#5c6478;height:2px"></span>ซอยและถนนรอง (ไม่แสดงความเร็ว)</div>
-    <div><span class="sw" style="background:#7fb2ff;height:6px"></span>น้ำบนถนน 0.1–0.3 ม.: รถช้าลง</div>
-    <div><span class="sw" style="background:#2f7bff;height:9px"></span>น้ำ ≥ 0.3 ม.: ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย</div>
-  </div>
-
-  <div class="note">
-    จุดแสงแทนจำนวนรถเฉลี่ยบนถนนแต่ละเส้นในช่วง 5 นาทีนั้น เคลื่อนที่ด้วยความเร็วเฉลี่ยของถนนนั้น
-    <b>ไม่ใช่ตำแหน่งรถจริงรายคัน</b> แผนที่และกราฟมาจากการจำลอง 1 รอบ ส่วนตัวเลขเฉลี่ยมาจาก 5 รอบที่สุ่มต่างกัน ·
-    ความสูงอาคารใช้ค่าจาก OSM ถ้ามี (ราว 5% ของอาคาร) ที่เหลือแสดงเป็น 1 ชั้น (3 ม.) เพื่อการแสดงผลเท่านั้น ·
-    ภูมิประเทศจาก FABDEM ทุก 210 ม. · ไม่มีการปิดถนนในแบบจำลอง
-  </div>
+    <div class="lgtitle">วิธีอ่านแผนที่</div>
+    <div class="ramp"><span>สีถนน: เร็ว</span><i style="background:#2ecc71"></i><i style="background:#a3d935"></i><i style="background:#ffd23f"></i><i style="background:#ff8c3d"></i><i style="background:#ff3b3b"></i><span>รถติด</span></div>
+    <div class="small">≥ 60 · 40–60 · 20–40 · 10–20 · &lt; 10 กม./ชม. (เฉพาะถนนสายหลัก ซอยเป็นสีเทา)</div>
+    <div><span class="sw" style="background:#2f7bff;height:8px"></span>น้ำขังบนถนน: ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย</div>
+    <div><span class="sw" style="background:#7fb2ff;height:5px"></span>มีน้ำบนถนน: รถช้าลง</div>
+    <div class="liveonly"><span class="dot" style="background:#4d8dff"></span>สถานีวัดฝน (วงใหญ่ = ฝนมาก)</div>
+    <div class="simonly"><span class="dot ring"></span>จุดที่ข่าวรายงานน้ำท่วม 29 ต.ค. 2569</div>
   </div>
 </div>
 
@@ -321,16 +354,20 @@ async function selectRun() {
   const st = m.step8[`${p}_${s}`];
   $('sMean').textContent = st ? `${st.speed_kmh}` : '–';
   $('warn').innerHTML = warning(s);
+  const d0 = m.step8[`${p}_dry`];  // the one-line answer: how much slower than a dry day
+  $('simImpact').innerHTML = s === 'dry' || !st || !d0 ? 'วันไม่มีฝน ใช้เป็นค่าเทียบของสถานการณ์อื่น'
+    : `เทียบวันไม่มีฝนช่วงเดียวกัน: รถช้าลงราว <b>${Math.abs(Math.round(100 * (st.speed_kmh / d0.speed_kmh - 1)))}%</b> · ` +
+      `เดินทางนานขึ้นราว <b>${Math.round(100 * (st.trip_min / d0.trip_min - 1))}%</b>`;
   frameChanged();
 }
 
 function warning(s) {
-  if (s === 'heavy_flood') return 'น้ำบนถนนมาจากแบบจำลองน้ำท่วมขั้นที่ 6 ของวันที่ 29 ต.ค. 2569 เวลา 07:30–09:00 ใช้ชุดเดียวกันกับทุกช่วงเวลา ' +
-    'แบบจำลองมีถนนที่ควรเลี่ยงราว 126 กม. มากกว่าที่ข่าวรายงาน และตรวจกับจุดข่าวแล้วไม่ผ่าน <b>ผลนี้จึงน่าจะสูงเกินจริง</b> ใช้เป็นค่าสูงของช่วงผลลัพธ์';
-  if (s === 'heavy_reports') return 'น้ำ 0.3 ม. เฉพาะถนนในรัศมี 100 ม. รอบ 14 จุดที่ข่าวรายงานเมื่อ 29 ต.ค. 2569 (17.3 กม.) ' +
-    'รัศมีและความลึกเป็นสมมติฐาน ข่าวไม่ได้รายงานทุกจุด ใช้เป็นค่าต่ำของช่วงผลลัพธ์';
-  if (s === 'dry') return 'วันไม่มีฝน ปริมาณรถปรับเทียบกับจุดนับของกรมทางหลวงและกรมทางหลวงชนบท ความเร็วยังไม่ได้ตรวจกับข้อมูลจริง และน่าจะสูงกว่าจริง';
-  return 'ฝนตกสม่ำเสมอทั้งเกาะ ลดความเร็วและความจุตามค่าจาก SHRP 2-L08 / FHWA (ทางหลวงสหรัฐฯ) ไม่มีน้ำบนถนน ความต้องการเดินทางเท่ากับวันไม่มีฝน';
+  if (s === 'heavy_flood') return '<b>กรณีน้ำขังมาก (ค่าสูง):</b> น้ำจากแบบจำลองน้ำท่วมของเหตุการณ์ 29 ต.ค. 2569 ' +
+    'มีถนนน้ำขังราว 126 กม. มากกว่าที่ข่าวรายงาน <b>จึงน่าจะแรงเกินจริง</b>';
+  if (s === 'heavy_reports') return '<b>กรณีน้ำขังน้อย (ค่าต่ำ):</b> น้ำ 0.3 ม. เฉพาะถนนรอบ 14 จุดที่ข่าวรายงานเมื่อ 29 ต.ค. 2569 (17 กม.) ' +
+    'ความลึกและขอบเขตเป็นค่าที่ตั้งเอง';
+  if (s === 'dry') return 'ปริมาณรถปรับให้ตรงกับจุดนับของกรมทางหลวงและกรมทางหลวงชนบท ความเร็วยังไม่ได้เทียบกับข้อมูลจริง';
+  return 'สมมติให้ฝนตกเท่ากันทั้งเกาะ ไม่มีน้ำขัง และคนยังเดินทางเท่าเดิม ผลของฝนต่อความเร็วใช้ค่าจากงานวิจัยในสหรัฐฯ';
 }
 
 function frameChanged() {
@@ -437,8 +474,11 @@ function setTab(isLive) {  // two menus: the step 8 results (as before) and the 
     if (L.cls) { L.auto = false; applyLive(L.cls); }
     if (!L.timer) { live(); L.timer = setInterval(live, 10 * 60 * 1000); }  // stations report hourly
   }
+  $('subtitle').textContent = isLive ? 'ฝนจริงจากสถานีวัด · การจราจรเป็นค่าประมาณจากแบบจำลอง'
+                                     : 'ลองเลือกช่วงเวลาและระดับฝน ดูว่ารถช้าลงแค่ไหน (ผลจากแบบจำลอง)';
   render();
 }
+$('helpBtn').onclick = () => { const open = $('help').hidden; $('help').hidden = !open; $('helpBtn').setAttribute('aria-expanded', String(open)); };
 
 function rainClass(mm) {  // hourly classes of HCM 2010 used in step 5
   return mm < RAIN_MIN ? 'dry' : mm < 2.54 ? 'light' : mm < 6.35 ? 'medium' : 'heavy';
@@ -482,10 +522,13 @@ function showLive() {
   const names = { dry: 'ไม่มีฝน', light: 'ฝนเล็กน้อย', medium: 'ฝนปานกลาง', heavy: 'ฝนหนัก' };
   L.cls = rainClass(last.mm);
   const more = n >= span ? ' (อย่างน้อย เท่าที่มีข้อมูลย้อนหลัง)' : '';
-  $('liveMain').textContent = raining ? `ฝนตกต่อเนื่องมาแล้ว ${n} ชม.${more}` : `ตอนนี้ไม่มีฝน · หยุดตกมาแล้ว ${n} ชม.${more}`;
-  $('liveSub').innerHTML = `ชม. ที่สิ้นสุด ${last.t.slice(11)} น. ${last.t.slice(8, 10)}/${last.t.slice(5, 7)}: ` +
-    (raining ? `สูงสุด ${last.mm} มม. ที่${last.at} (${names[L.cls]})` : 'ทุกสถานีไม่มีฝน') +
-    `<br>24 ชม. ที่ผ่านมามีฝน ${wet24} ชม. · สะสมมากที่สุด ${top24 ? top24.r24 + ' มม. ที่' + top24.name : '–'}`;
+  $('liveIcon').textContent = !raining ? '☀️' : L.cls === 'heavy' ? '⛈️' : '🌧️';
+  $('liveMain').textContent = raining ? `ฝนกำลังตก · ต่อเนื่องมา ${n} ชม.${more}` : `ตอนนี้ไม่มีฝน · หยุดมา ${n} ชม.${more}`;
+  $('liveLevel').hidden = !raining;
+  $('liveLevel').textContent = names[L.cls];
+  $('liveSub').innerHTML = (raining ? `ตกมากที่สุดที่ <b>${last.at}</b> ${last.mm} มม. ในชั่วโมงล่าสุด<br>` : '') +
+    `24 ชม. ที่ผ่านมา ฝนตก ${wet24} ชม. · ฝนสะสมมากที่สุด ${top24 ? top24.r24 + ' มม. ที่' + top24.name : '–'}`;
+  $('liveTime').textContent = `ข้อมูลฝนถึง ${last.t.slice(11)} น. (${+last.t.slice(8, 10)}/${+last.t.slice(5, 7)}) จาก ThaiWater · อัปเดตเองทุก 10 นาที`;
   const lastDay = h.slice(-24), mx = Math.max(6.35, ...lastDay.map(x => x.mm));
   $('liveBars').innerHTML = lastDay.map(x =>
     `<i class="${x.mm >= RAIN_MIN ? '' : 'z'}" style="height:${Math.max(4, 100 * x.mm / mx)}%" title="${x.t.slice(5)} น.: ${x.mm} มม."></i>`).join('');
@@ -507,7 +550,14 @@ function showLive() {
     (L.flood ? `<b>ฝนหนักมาก: อาจมีน้ำขังบนถนน</b> ดูกรณีน้ำบนถนนของขั้นที่ 7–8 ได้ (ค่าต่ำ = น้ำจุดข่าว, ค่าสูง = น้ำแบบจำลอง)`
              : `ยังไม่ถึงฝนหนักมาก (> 90 มม./24 ชม.) จึงยังไม่ใช้กรณีน้ำบนถนน`) +
     `<br><span style="color:var(--muted)">เกณฑ์ 90 มม. สำหรับกรณีน้ำบนถนนเป็นเกณฑ์ที่งานนี้ตั้ง ยังไม่ได้ตรวจกับน้ำท่วมจริง</span>`;
-  $('liveUse').disabled = false;
+  const trip = v && v0 ? Math.round(100 * (v.trip_min / v0.trip_min - 1)) : 0;
+  $('liveImpact').hidden = false;
+  $('liveImpact').innerHTML = L.cls === 'dry'
+    ? `<b>การจราจร:</b> แผนที่แสดงวันไม่มีฝนช่วง ${P} น. (ค่าประมาณจากแบบจำลอง)`
+    : `<b>การจราจร:</b> ถ้า${names[L.cls]}ตกทั่วเกาะช่วง ${P} น. แบบจำลองประมาณว่ารถช้าลงราว ` +
+      `<b>${Math.abs(Math.round(100 * (v.speed_kmh / v0.speed_kmh - 1)))}%</b> และเดินทางนานขึ้นราว <b>${trip}%</b> เทียบวันไม่มีฝน`;
+  $('liveAdvice').hidden = !L.flood;
+  $('liveAdvice').innerHTML = '<b>ฝนสะสมมาก</b> อาจมีน้ำขังในที่ต่ำ ถนนที่มีน้ำขัง: ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย';
   $('liveFlood').hidden = !L.flood;
   $('liveNote').textContent = 'นับชั่วโมงที่สถานีใดสถานีหนึ่งมีฝน ≥ 0.1 มม. · ผลจำลองเป็นชุดที่รันไว้ล่วงหน้าตามระดับฝน ' +
     '(ฝนเท่ากันทั้งเกาะ) ไม่ใช่การจำลองสด และไม่ใช่สภาพจราจรจริงตอนนี้';
@@ -522,10 +572,10 @@ function nearestPeriod() {
 
 function applyLive(scenario) {
   L.want = scenario;  // drops wait for this run to be on the map
+  S.frame = S.meta.warmup_frames + Math.floor(new Date().getMinutes() / 5);  // same minute as now, in the study hour
   $('period').value = L.period; $('period').onchange();
   $('scenario').value = scenario; selectRun();
 }
-$('liveUse').onclick = () => applyLive(L.cls);
 $('tabSim').onclick = () => setTab(false);
 $('tabLive').onclick = () => setTab(true);
 $('liveFlood').onclick = () => applyLive('heavy_reports');
