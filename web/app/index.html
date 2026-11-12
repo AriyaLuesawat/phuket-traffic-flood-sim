@@ -628,27 +628,36 @@ function rainFx(now) {
     return;
   }
   if (fx.wn) { fx.w = []; fx.wn = 0; render(); }
-  const want = on ? Math.round(DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
-  while (fx.drops.length < want) fx.drops.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight,
-                                                 v: 0.6 + Math.random() * 0.6, l: 8 + Math.random() * 10 });
+  // 2D: softer than 3D, fewer drops in three depth layers (far = faint, short, slow; near = brighter, longer)
+  const want = on ? Math.round(0.6 * DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
+  while (fx.drops.length < want) {
+    const z = Math.random() < 0.5 ? 0 : Math.random() < 0.6 ? 1 : 2;
+    fx.drops.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, z,
+                    v: [0.35, 0.55, 0.8][z] * (0.85 + Math.random() * 0.3), l: [6, 10, 15][z] * (0.8 + Math.random() * 0.4) });
+  }
   fx.drops.length = want;
   const dt = fx.last ? Math.min(50, now - fx.last) : 16;
   fx.last = now;
-  const speed = cls === 'heavy' ? 1.25 : cls === 'medium' ? 1.0 : 0.8, wind = 0.18;
-  g.strokeStyle = 'rgba(180, 210, 255, 0.5)';
-  g.lineWidth = cls === 'heavy' ? 1.3 : 1;
-  g.beginPath();
-  for (const d of fx.drops) {
-    if (!reduceMotion) {
-      d.y += d.v * speed * dt;
-      d.x += d.v * speed * dt * wind;
-      if (d.y > innerHeight) { d.y = -d.l; d.x = Math.random() * innerWidth; }
-      if (d.x > innerWidth) d.x -= innerWidth;
+  const speed = cls === 'heavy' ? 1.15 : cls === 'medium' ? 1.0 : 0.85, wind = 0.1;
+  const heavy = cls === 'heavy' ? 1.25 : 1;
+  g.lineCap = 'round';
+  for (let z = 0; z < 3; z++) {
+    g.strokeStyle = `rgba(190, 215, 255, ${[0.13, 0.22, 0.32][z] * heavy})`;
+    g.lineWidth = [0.8, 1, 1.3][z];
+    g.beginPath();
+    for (const d of fx.drops) {
+      if (d.z !== z) continue;
+      if (!reduceMotion) {
+        d.y += d.v * speed * dt;
+        d.x += d.v * speed * dt * wind;
+        if (d.y > innerHeight + d.l) { d.y = -d.l; d.x = Math.random() * innerWidth; }
+        if (d.x > innerWidth) d.x -= innerWidth;
+      }
+      g.moveTo(d.x, d.y);
+      g.lineTo(d.x - d.l * wind, d.y - d.l);
     }
-    g.moveTo(d.x, d.y);
-    g.lineTo(d.x - d.l * wind, d.y - d.l);
+    g.stroke();
   }
-  g.stroke();
   requestAnimationFrame(rainFx);
 }
 requestAnimationFrame(rainFx);
