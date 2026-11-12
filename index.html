@@ -247,7 +247,10 @@ async function load() {
   if (q.get('v') === 'island') $('vIsland').onclick();
   $('loading').remove();
   await selectRun();
-  if (new URLSearchParams(location.search).get('tab') === 'live') setTab(true);
+  {  // live rain is the default menu; ?tab=sim, or a link that names a scenario (?s=), opens the step 8 results
+    const q = new URLSearchParams(location.search);
+    setTab(q.get('tab') ? q.get('tab') === 'live' : !q.get('s'));
+  }
   requestAnimationFrame(tick);
 }
 
