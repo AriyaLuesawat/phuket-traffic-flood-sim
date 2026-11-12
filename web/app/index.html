@@ -58,6 +58,10 @@
           background: rgba(30, 70, 140, 0.18); }
   #live .big { font-size: 15px; font-weight: 600; }
   #live .small { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 3px; }
+  .tabs { display: flex; gap: 6px; margin: 8px 0 2px; }
+  .tabs button { flex: 1; }
+  #ctl:not(.live) #live { display: none; }
+  #ctl.live #simPane { display: none; }
   #liveRec { margin-top: 6px; border-top: 1px solid rgba(80,160,255,0.3); padding-top: 6px; font-size: 12.5px; line-height: 1.55; }
   #liveRec b { color: #9cc3ff; }
   #live button { margin-top: 6px; font-size: 12.5px; }
@@ -91,8 +95,12 @@
     <div class="sub">ผลจากแบบจำลองการจราจร ไม่ใช่ข้อมูลจริง · เล่นย้อนหลังทีละ 5 นาที</div></div>
     <button id="fold" aria-label="ย่อหรือขยายแผงควบคุม" aria-expanded="true">–</button>
   </div>
+  <div class="tabs" role="tablist">
+    <button id="tabSim" role="tab" class="on" aria-selected="true">ผลจำลอง</button>
+    <button id="tabLive" role="tab" aria-selected="false">ฝนเรียลไทม์</button>
+  </div>
   <div id="live" aria-live="polite">
-    <div class="small">ฝนตอนนี้จากเครื่องวัดฝนจริงในภูเก็ต (ThaiWater)</div>
+    <div class="small">ฝนตอนนี้จากเครื่องวัดฝนจริงในภูเก็ต (ThaiWater) · อัปเดตทุก 10 นาที</div>
     <div class="big" id="liveMain">กำลังโหลดข้อมูลฝน…</div>
     <div class="small" id="liveSub"></div>
     <div id="liveBars" title="ฝนสูงสุดของทุกสถานีในแต่ละชั่วโมง ย้อนหลัง 24 ชม."></div>
@@ -100,6 +108,7 @@
     <div class="row"><button id="liveUse" disabled>ใช้ฝนตอนนี้กับแผนที่</button><button id="liveFlood" hidden>ดูกรณีมีน้ำบนถนน</button></div>
     <div class="small" id="liveNote"></div>
   </div>
+  <div id="simPane">
 
   <label class="f" for="period">ช่วงเวลา</label>
   <select id="period"></select>
@@ -129,7 +138,7 @@
     <label><input type="checkbox" id="lTer"> ภูมิประเทศ</label>
     <label><input type="checkbox" id="lWater" checked> น้ำ</label>
     <label><input type="checkbox" id="lNews" checked> จุดข่าวน้ำท่วม 29 ต.ค. 2569</label>
-    <label><input type="checkbox" id="lRain" checked> สถานีวัดฝน (สด)</label>
+    <label><input type="checkbox" id="lRain" checked> สถานีวัดฝน (เมนูฝนเรียลไทม์)</label>
     <label><input type="checkbox" id="lDrops" checked> เม็ดฝน</label>
   </div>
 
@@ -151,6 +160,7 @@
     <b>ไม่ใช่ตำแหน่งรถจริงรายคัน</b> แผนที่และกราฟมาจากการจำลอง 1 รอบ ส่วนตัวเลขเฉลี่ยมาจาก 5 รอบที่สุ่มต่างกัน ·
     ความสูงอาคารใช้ค่าจาก OSM ถ้ามี (ราว 5% ของอาคาร) ที่เหลือแสดงเป็น 1 ชั้น (3 ม.) เพื่อการแสดงผลเท่านั้น ·
     ภูมิประเทศจาก FABDEM ทุก 210 ม. · ไม่มีการปิดถนนในแบบจำลอง
+  </div>
   </div>
 </div>
 
@@ -237,8 +247,7 @@ async function load() {
   if (q.get('v') === 'island') $('vIsland').onclick();
   $('loading').remove();
   await selectRun();
-  live();
-  setInterval(live, 10 * 60 * 1000);  // stations report every hour; check every 10 minutes
+  if (new URLSearchParams(location.search).get('tab') === 'live') setTab(true);
   requestAnimationFrame(tick);
 }
 
@@ -403,7 +412,19 @@ function loadBuildings() {  // 13 MB, only needed in 3D: fetched the first time 
 // ---- live rain: ThaiWater public API (measured station rain, hourly; CORS allowed) ----
 const TW = 'https://api-v3.thaiwater.net/api/v1/thaiwater30/public/';
 const RAIN_MIN = 0.1;  // mm in an hour counted as rain (same lower bound as the light class, step 5)
-const L = { stations: [], hours: [], cls: null, stamp: 0, auto: !new URLSearchParams(location.search).get('s') };
+const L = { stations: [], hours: [], cls: null, stamp: 0, auto: false, timer: null };
+
+function setTab(isLive) {  // two menus: the step 8 results (as before) and the live rain, which drives the map
+  $('ctl').classList.toggle('live', isLive);
+  $('tabSim').classList.toggle('on', !isLive); $('tabLive').classList.toggle('on', isLive);
+  $('tabSim').setAttribute('aria-selected', String(!isLive)); $('tabLive').setAttribute('aria-selected', String(isLive));
+  if (isLive) {
+    L.auto = true;  // the map follows the rain now
+    if (L.cls) { L.auto = false; applyLive(L.cls); }
+    if (!L.timer) { live(); L.timer = setInterval(live, 10 * 60 * 1000); }  // stations report hourly
+  }
+  render();
+}
 
 function rainClass(mm) {  // hourly classes of HCM 2010 used in step 5
   return mm < RAIN_MIN ? 'dry' : mm < 2.54 ? 'light' : mm < 6.35 ? 'medium' : 'heavy';
@@ -490,11 +511,15 @@ function applyLive(scenario) {
   $('scenario').value = scenario; selectRun();
 }
 $('liveUse').onclick = () => applyLive(L.cls);
+$('tabSim').onclick = () => setTab(false);
+$('tabLive').onclick = () => setTab(true);
 $('liveFlood').onclick = () => applyLive('heavy_reports');
 
 // ---- falling rain drops: decoration only, density by the rain class of the scenario on the map ----
-const DROPS = { dry: 0, light: 140, medium: 420, heavy: 900 };  // drops on a 1600x1000 screen
-const fx = { drops: [], last: 0 };
+const DROPS = { dry: 0, light: 350, medium: 1000, heavy: 2200 };  // drops on a 1600x1000 screen
+const DROPS_3D = { dry: 0, light: 1500, medium: 4000, heavy: 9000 };  // drops in the 3D box around the view
+const RAIN_TOP = 700;  // m above ground where 3D drops start
+const fx = { drops: [], last: 0, w: [], wn: 0 };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function rainCls() {
   const s = S.run ? S.run.s : 'dry';
@@ -506,7 +531,16 @@ function rainFx(now) {
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, innerWidth, innerHeight);
-  const cls = rainCls(), want = $('lDrops').checked ? Math.round(DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
+  const cls = rainCls(), on = $('lDrops').checked, in3d = (S.view.pitch || 0) > 5;
+  const dt0 = fx.last ? Math.min(50, now - fx.last) : 16;
+  if (in3d) {  // drops as short lines in world space, so they get perspective; the 2D overlay is cleared
+    rain3d(on ? DROPS_3D[cls] : 0, dt0, cls);
+    fx.last = now;
+    requestAnimationFrame(rainFx);
+    return;
+  }
+  if (fx.wn) { fx.w = []; fx.wn = 0; render(); }
+  const want = on ? Math.round(DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
   while (fx.drops.length < want) fx.drops.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight,
                                                  v: 0.6 + Math.random() * 0.6, l: 8 + Math.random() * 10 });
   fx.drops.length = want;
@@ -530,6 +564,23 @@ function rainFx(now) {
   requestAnimationFrame(rainFx);
 }
 requestAnimationFrame(rainFx);
+
+function rain3d(want, dt, cls) {
+  const v = S.view, deg = 360 / (256 * 2 ** v.zoom);  // degrees per screen pixel at this zoom
+  const hx = innerWidth * deg * 0.9, hy = innerHeight * deg * 1.4;  // a little wider than the screen (far side in 3D)
+  const spawn = d => { d.lon = v.longitude + (Math.random() * 2 - 1) * hx; d.lat = v.latitude + (Math.random() * 2 - 1) * hy;
+                       d.z = Math.random() * RAIN_TOP; d.v = 0.12 + Math.random() * 0.08; return d; };
+  while (fx.w.length < want) fx.w.push(spawn({}));
+  fx.w.length = want;
+  const speed = cls === 'heavy' ? 1.3 : cls === 'medium' ? 1.0 : 0.8;
+  for (const d of fx.w) {
+    if (!reduceMotion) d.z -= d.v * speed * dt;
+    if (d.z < 0 || Math.abs(d.lon - v.longitude) > hx || Math.abs(d.lat - v.latitude) > hy) { spawn(d); d.z = RAIN_TOP; }
+  }
+  fx.wn = want;
+  fx.len = cls === 'heavy' ? 140 : 100;  // m; shorter lines read as dots from the 3D camera
+  render();
+}
 
 function render() {
   if (!S.run) return;
@@ -568,11 +619,14 @@ function render() {
     getPosition: d => [d.lon, d.lat, 5], radiusUnits: 'pixels', getRadius: 9, stroked: true, filled: true,
     getFillColor: [255, 255, 255, 25], getLineColor: [255, 255, 255, 220], lineWidthUnits: 'pixels', getLineWidth: 2,
     pickable: true, parameters: { depthTest: false } }));
-  if ($('lRain').checked && L.stations.length) layers.push(new deck.ScatterplotLayer({ id: 'rain', data: L.stations,
+  if ($('lRain').checked && L.stations.length && $('ctl').classList.contains('live')) layers.push(new deck.ScatterplotLayer({ id: 'rain', data: L.stations,
     getPosition: d => [d.lon, d.lat, 8], radiusUnits: 'pixels', getRadius: d => 5 + Math.min(14, 1.6 * (d.r1 || 0)),
     stroked: true, getFillColor: d => d.r1 >= 0.1 ? [77, 141, 255, 200] : d.r1 === 0 ? [127, 147, 171, 60] : [0, 0, 0, 0],
     getLineColor: [210, 225, 255, 220], lineWidthUnits: 'pixels', getLineWidth: 1.2, pickable: true,
     updateTriggers: { getRadius: L.stamp, getFillColor: L.stamp }, parameters: { depthTest: false } }));
+  if (fx.wn) layers.push(new deck.LineLayer({ id: 'drops', data: fx.w, getSourcePosition: d => [d.lon, d.lat, d.z],
+    getTargetPosition: d => [d.lon - 0.00004, d.lat, d.z + fx.len], getColor: [190, 215, 255, 170], widthUnits: 'pixels',
+    getWidth: 1.4, updateTriggers: { getSourcePosition: fx.last, getTargetPosition: fx.last } }));
   deckgl.setProps({ layers });
 }
 
