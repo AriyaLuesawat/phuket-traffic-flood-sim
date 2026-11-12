@@ -152,7 +152,7 @@
     <div class="barsx" aria-hidden="true"><span>24 ชม. ที่แล้ว</span><span>ตอนนี้</span></div>
     <div class="impact" id="liveImpact" hidden></div>
     <div class="impact flood" id="liveAdvice" hidden></div>
-    <button id="liveFlood" hidden>ดูถนนที่อาจมีน้ำขัง</button>
+    <button id="liveFlood" hidden>ดูตัวอย่างน้ำขังจากเหตุการณ์ 29 ต.ค. 2569</button>
     <div class="small" id="liveTime"></div>
     <details><summary>รายละเอียดและข้อจำกัด</summary><div id="liveRec"></div><div class="small" id="liveNote"></div></details>
     </div>
@@ -229,12 +229,13 @@ const MAX_DOTS_EDGE = 12;   // dots drawn per edge at most
 const MAX_DOTS = 40000;
 const ANIM_SIM_S = 30;      // simulated seconds per real second for the moving dots
 const TOWN = { longitude: 98.388, latitude: 7.884, zoom: 13.4 };
+const SMALL = matchMedia('(max-width: 640px), (pointer: coarse)').matches;  // phones and tablets
 const LIMIT = { minZoom: 9.6, maxZoom: 17.5, lon: [98.18, 98.55], lat: [7.70, 8.25] };  // keep Phuket on screen
 const ISLAND = { longitude: 98.34, latitude: 7.95, zoom: 10.4 };
 const ADD = { depthTest: false, blend: true, blendFunc: [770, 1], blendEquation: 32774 };  // additive glow
 
 const S = { meta: null, roads: null, run: null, water: null, frame: 0, playing: false, frameMs: 1000,
-            view: { ...TOWN, pitch: 55, bearing: -20, minZoom: LIMIT.minZoom, maxZoom: LIMIT.maxZoom }, pitch: 55, dots: null, last: 0, simT: 0 };
+            view: { ...TOWN, pitch: SMALL ? 0 : 55, bearing: SMALL ? 0 : -20, minZoom: LIMIT.minZoom, maxZoom: LIMIT.maxZoom }, pitch: SMALL ? 0 : 55, dots: null, last: 0, simT: 0 };
 const $ = id => document.getElementById(id);
 
 function speedColor(v, a = 255) {
@@ -350,6 +351,10 @@ function setupControls() {
                         $('fold').setAttribute('aria-expanded', String(!min)); };
   $('fold').onclick = () => fold(!$('ctl').classList.contains('min'));
   if (innerWidth <= 640) fold(true);  // small screens start with the map visible
+  if (SMALL) {  // 2D first: no 13 MB of buildings and no terrain until 3D is pressed
+    $('v2d').classList.add('on'); $('v3d').classList.remove('on');
+    $('lBld').checked = false; $('lTer').checked = false;
+  }
 }
 
 async function selectRun() {
@@ -562,15 +567,16 @@ function showLive() {
   const st = S.meta.step8, P = S.meta.periods[L.period];
   const v = st[`${L.period}_${L.cls}`], v0 = st[`${L.period}_dry`];
   const chg = v && v0 && L.cls !== 'dry' ? ` ความเร็วเฉลี่ย ${v.speed_kmh} กม./ชม. (${(100 * (v.speed_kmh / v0.speed_kmh - 1)).toFixed(1)}% จากวันไม่มีฝน)` : v ? ` ความเร็วเฉลี่ย ${v.speed_kmh} กม./ชม.` : '';
-  L.flood = maxDay > 90;  // ASSUMPTION of this work: daily "very heavy" (TMD > 90 mm) at a station → show the water cases
+  L.flood = maxDay > 90;  // TMD daily class "very heavy" (> 90 mm) at a station; not a flood forecast (no checked threshold)
   $('liveRec').innerHTML =
     `<b>ควรใช้ในแผนที่: ${names[L.cls]}</b> (ระดับรายชั่วโมงของ HCM 2010 จากสถานีที่ฝนมากที่สุดในชั่วโมงล่าสุด)<br>` +
     `ตรงกับ <b>ขั้นที่ 8 สถานการณ์ "${names[L.cls]}"</b> ช่วงเวลาที่ใกล้ตอนนี้ (${P} น.) ` +
     `ใช้ค่าปรับจากขั้นที่ 5: ${FACT[L.cls]} ·${chg}<br>` +
     `ฝนสะสม 24 ชม. สูงสุด ${maxDay} มม. = <b>${day}</b> ตามเกณฑ์รายวันของกรมอุตุนิยมวิทยา<br>` +
-    (L.flood ? `<b>ฝนหนักมาก: อาจมีน้ำขังบนถนน</b> ดูกรณีน้ำบนถนนของขั้นที่ 7–8 ได้ (ค่าต่ำ = น้ำจุดข่าว, ค่าสูง = น้ำแบบจำลอง)`
-             : `ยังไม่ถึงฝนหนักมาก (> 90 มม./24 ชม.) จึงยังไม่ใช้กรณีน้ำบนถนน`) +
-    `<br><span style="color:var(--muted)">เกณฑ์ 90 มม. สำหรับกรณีน้ำบนถนนเป็นเกณฑ์ที่งานนี้ตั้ง ยังไม่ได้ตรวจกับน้ำท่วมจริง</span>`;
+    (L.flood ? `ฝนหนักมาก: เปิดให้ดูตัวอย่างน้ำบนถนนจากเหตุการณ์ 29 ต.ค. 2569 (ขั้นที่ 7–8, ค่าต่ำ = น้ำจุดข่าว)`
+             : `ยังไม่ถึงฝนหนักมาก (> 90 มม./24 ชม. ตามเกณฑ์กรมอุตุฯ)`) +
+    `<br><span style="color:var(--muted)">หน้าเว็บนี้<b>ไม่ได้ทำนายน้ำท่วม</b> ยังไม่มีข้อมูลพอบอกได้ว่าฝนเท่าไรภูเก็ตจึงน้ำขัง ` +
+    `เกณฑ์ 90 มม. เป็นระดับฝนรายวันของกรมอุตุนิยมวิทยา ใช้เพียงเพื่อเสนอให้ดูตัวอย่างน้ำขัง</span>`;
   const trip = v && v0 ? Math.round(100 * (v.trip_min / v0.trip_min - 1)) : 0;
   $('liveImpact').hidden = false;
   $('liveImpact').innerHTML = L.cls === 'dry'
@@ -578,7 +584,8 @@ function showLive() {
     : `<b>การจราจร:</b> แผนที่ใช้ระดับของสถานีที่ฝนมากที่สุด ถ้า${names[L.cls]}ตกทั่วเกาะช่วง ${P} น. แบบจำลองประมาณว่ารถช้าลงราว ` +
       `<b>${Math.abs(Math.round(100 * (v.speed_kmh / v0.speed_kmh - 1)))}%</b> และเดินทางนานขึ้นราว <b>${trip}%</b> เทียบวันไม่มีฝน`;
   $('liveAdvice').hidden = !L.flood;
-  $('liveAdvice').innerHTML = '<b>ฝนสะสมมาก</b> อาจมีน้ำขังในที่ต่ำ ถนนที่มีน้ำขัง: ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย';
+  $('liveAdvice').innerHTML = `<b>ฝนหนักมาก</b> ฝนสะสม 24 ชม. เกิน 90 มม. (${maxDay} มม.) ตามเกณฑ์กรมอุตุนิยมวิทยา · ` +
+    'เมื่อฝนตกหนักต่อเนื่อง 26–29 ต.ค. 2569 มีข่าวรายงานน้ำท่วมขังหลายจุด หน้าเว็บนี้ไม่ได้ทำนายว่าจะท่วมที่ไหน';
   $('liveFlood').hidden = !L.flood;
   $('liveNote').textContent = 'นับชั่วโมงที่สถานีใดสถานีหนึ่งมีฝน ≥ 0.1 มม. · ผลจำลองเป็นชุดที่รันไว้ล่วงหน้าตามระดับฝน ' +
     '(ฝนเท่ากันทั้งเกาะ) ไม่ใช่การจำลองสด และไม่ใช่สภาพจราจรจริงตอนนี้';
@@ -635,7 +642,7 @@ function rainFx(now) {
   }
   if (fx.wn) { fx.w = []; fx.wn = 0; render(); }
   // 2D: softer than 3D, fewer drops in three depth layers (far = faint, short, slow; near = brighter, longer)
-  const want = on ? Math.round(0.6 * DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
+  const want = on ? Math.round((SMALL ? 0.4 : 0.6) * DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
   while (fx.drops.length < want) {
     const z = Math.random() < 0.5 ? 0 : Math.random() < 0.6 ? 1 : 2;
     fx.drops.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, z,
@@ -672,7 +679,7 @@ function rain3d(per, dt, cls) {
   const v = S.view, deg = 360 / (256 * 2 ** v.zoom);  // degrees per screen pixel at this zoom
   const hx = innerWidth * deg * 0.9, hy = innerHeight * deg * 1.4;  // a little wider than the screen (far side in 3D)
   // same density as the 2D overlay: `per` drops per 1600x1000 px of ground, over the whole box (about 5 screens)
-  const want = Math.min(15000, Math.round(per * (2 * hx / deg) * (2 * hy / deg) / 1.6e6));
+  const want = Math.min(SMALL ? 3000 : 15000, Math.round((SMALL ? 0.4 : 1) * per * (2 * hx / deg) * (2 * hy / deg) / 1.6e6));
   const spawn = d => { d.lon = v.longitude + (Math.random() * 2 - 1) * hx; d.lat = v.latitude + (Math.random() * 2 - 1) * hy;
                        d.z = Math.random() * RAIN_TOP; d.v = 0.12 + Math.random() * 0.08; return d; };
   while (fx.w.length < want) fx.w.push(spawn({}));
