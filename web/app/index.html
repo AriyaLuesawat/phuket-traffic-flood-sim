@@ -582,7 +582,13 @@ function showLive() {
   $('liveFlood').hidden = !L.flood;
   $('liveNote').textContent = 'นับชั่วโมงที่สถานีใดสถานีหนึ่งมีฝน ≥ 0.1 มม. · ผลจำลองเป็นชุดที่รันไว้ล่วงหน้าตามระดับฝน ' +
     '(ฝนเท่ากันทั้งเกาะ) ไม่ใช่การจำลองสด และไม่ใช่สภาพจราจรจริงตอนนี้';
-  if (L.auto) { L.auto = false; applyLive(L.cls); }  // first load without ?s=: the map follows the rain now
+  if (L.auto) { L.auto = false; applyLive(L.cls); }  // first load: the map follows the rain now
+  else if ($('ctl').classList.contains('live')) {
+    // every refresh (10 min): when the rain level or the nearest period changes, e.g. the rain stops, the map follows.
+    // The water case picked with its button stays while the rain is still very heavy
+    const target = L.want === 'heavy_reports' && L.flood ? 'heavy_reports' : L.cls;
+    if (target !== L.want || L.period !== $('period').value) applyLive(target);
+  }
 }
 
 function nearestPeriod() {
