@@ -74,7 +74,16 @@
   #chartX { position: relative; height: 14px; font-size: 10.5px; color: var(--muted); }
   #chartX span { position: absolute; top: 0; white-space: nowrap; }
   #range { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  #viewbox { top: 12px; right: 12px; padding: 7px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; width: 150px; }
+  #viewbox .seg { display: flex; }
+  #viewbox .seg button { flex: 1; border-radius: 0; }
+  #viewbox .seg button:first-child { border-radius: 6px 0 0 6px; }
+  #viewbox .seg button:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
+  #viewbox button { font-size: 12.5px; padding: 4px 6px; }
+  #layers { display: flex; flex-direction: column; gap: 3px; padding: 2px 2px 0; }
+  #layers[hidden] { display: none; }
   @media (max-width: 640px) {
+    #viewbox { top: auto; bottom: 130px; right: 16px; width: 132px; }
     #ctl { max-height: 45vh; width: auto; left: 16px; right: 16px; max-width: none; }
     #time { left: 16px; right: 16px; }
     #clock { min-width: 0; }
@@ -126,22 +135,6 @@
   <div id="chartX"></div>
   <div class="note" id="chartNote"></div>
 
-  <label class="f">มุมมองและชั้นข้อมูล</label>
-  <div class="row">
-    <button id="v2d" class="on">2D</button><button id="v3d">3D</button>
-    <button id="vTown">ตัวเมือง</button><button id="vIsland">ทั้งเกาะ</button>
-  </div>
-  <div class="tags" style="margin-top:6px">
-    <label><input type="checkbox" id="lCars"> รถ</label>
-    <label><input type="checkbox" id="lRoads" checked> ถนน</label>
-    <label><input type="checkbox" id="lBld"> อาคาร</label>
-    <label><input type="checkbox" id="lTer"> ภูมิประเทศ</label>
-    <label><input type="checkbox" id="lWater" checked> น้ำ</label>
-    <label><input type="checkbox" id="lNews" checked> จุดข่าวน้ำท่วม 29 ต.ค. 2569</label>
-    <label><input type="checkbox" id="lRain" checked> สถานีวัดฝน (เมนูฝนเรียลไทม์)</label>
-    <label><input type="checkbox" id="lDrops" checked> เม็ดฝน</label>
-  </div>
-
   <div class="legend">
     <div style="color:var(--muted)">ความเร็วบนถนนสายหลัก (กม./ชม.)</div>
     <div><span class="sw" style="background:#2ecc71"></span>≥ 60 คล่อง</div>
@@ -161,6 +154,22 @@
     ความสูงอาคารใช้ค่าจาก OSM ถ้ามี (ราว 5% ของอาคาร) ที่เหลือแสดงเป็น 1 ชั้น (3 ม.) เพื่อการแสดงผลเท่านั้น ·
     ภูมิประเทศจาก FABDEM ทุก 210 ม. · ไม่มีการปิดถนนในแบบจำลอง
   </div>
+  </div>
+</div>
+
+<div id="viewbox" class="panel" role="group" aria-label="มุมมองและชั้นข้อมูล">
+  <div class="seg"><button id="v2d">2D</button><button id="v3d" class="on">3D</button></div>
+  <div class="seg"><button id="vTown">ตัวเมือง</button><button id="vIsland">ทั้งเกาะ</button></div>
+  <button id="layersBtn" aria-expanded="false" aria-controls="layers" title="เลือกชั้นข้อมูล">ชั้นข้อมูล ▾</button>
+  <div id="layers" class="tags" hidden>
+    <label><input type="checkbox" id="lRoads" checked> ถนน</label>
+    <label><input type="checkbox" id="lWater" checked> น้ำ</label>
+    <label><input type="checkbox" id="lBld" checked> อาคาร</label>
+    <label><input type="checkbox" id="lTer" checked> ภูมิประเทศ</label>
+    <label><input type="checkbox" id="lCars"> รถ</label>
+    <label><input type="checkbox" id="lDrops" checked> เม็ดฝน</label>
+    <label><input type="checkbox" id="lRain" checked> สถานีวัดฝน</label>
+    <label><input type="checkbox" id="lNews" checked> จุดข่าวน้ำท่วม</label>
   </div>
 </div>
 
@@ -187,7 +196,7 @@ const ISLAND = { longitude: 98.34, latitude: 7.95, zoom: 10.4 };
 const ADD = { depthTest: false, blend: true, blendFunc: [770, 1], blendEquation: 32774 };  // additive glow
 
 const S = { meta: null, roads: null, run: null, water: null, frame: 0, playing: false, frameMs: 1000,
-            view: { ...TOWN, pitch: 0, bearing: 0 }, pitch: 0, dots: null, last: 0, simT: 0 };
+            view: { ...TOWN, pitch: 55, bearing: -20 }, pitch: 55, dots: null, last: 0, simT: 0 };
 const $ = id => document.getElementById(id);
 
 function speedColor(v, a = 255) {
@@ -292,6 +301,8 @@ function setupControls() {
   $('vTown').onclick = () => view(S.view.pitch, S.view.bearing, TOWN);
   $('vIsland').onclick = () => view(S.view.pitch, S.view.bearing, ISLAND);
   for (const id of ['lCars', 'lRoads', 'lBld', 'lTer', 'lWater', 'lNews', 'lRain']) $(id).onchange = render;
+  $('layersBtn').onclick = () => { const open = $('layers').hidden; $('layers').hidden = !open;
+    $('layersBtn').setAttribute('aria-expanded', String(open)); $('layersBtn').textContent = open ? 'ชั้นข้อมูล ▴' : 'ชั้นข้อมูล ▾'; };
   const fold = min => { $('ctl').classList.toggle('min', min); $('fold').textContent = min ? '+' : '–';
                         $('fold').setAttribute('aria-expanded', String(!min)); };
   $('fold').onclick = () => fold(!$('ctl').classList.contains('min'));
