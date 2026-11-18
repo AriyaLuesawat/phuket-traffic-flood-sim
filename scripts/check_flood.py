@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import matplotlib
+import matplotlib.font_manager  # noqa: E402
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
@@ -29,6 +30,7 @@ ROADS = ROOT / 'data' / 'processed' / 'flood' / 'roads.tif'
 RADIUS = 60.0
 THRESHOLDS = (0.1, 0.3)
 TO_UTM = Transformer.from_crs('EPSG:4326', 'EPSG:32647', always_xy=True)
+matplotlib.font_manager.fontManager.addfont(str(ROOT / 'fonts' / 'IBMPlexSansThai-Regular.ttf'))  # loopless Thai
 
 
 def neighbourhood_max(depth, transform, x, y):
@@ -96,10 +98,10 @@ def draw(run, depth, transform, rows):
                 ax.annotate(p['id'], (x, y), xytext=(4, 4), textcoords='offset points', fontsize=8, color='#d62728')
         ax.set_xticks([])
         ax.set_yticks([])
-    axes[0].legend(loc='lower left', fontsize=9, prop={'family': 'Thonburi'})
+    axes[0].legend(loc='lower left', fontsize=9, prop={'family': 'IBM Plex Sans Thai'})
     cb = fig.colorbar(im, ax=axes, shrink=0.6)
-    cb.set_label('ความลึกน้ำสูงสุด (ม.)', fontfamily='Thonburi')
-    fig.suptitle(f'{run.name}: ความลึกน้ำสูงสุด (แสดงเฉพาะ ≥ 5 ซม.)', fontfamily='Thonburi')
+    cb.set_label('ความลึกน้ำสูงสุด (ม.)', fontfamily='IBM Plex Sans Thai')
+    fig.suptitle(f'{run.name}: ความลึกน้ำสูงสุด (แสดงเฉพาะ ≥ 5 ซม.)', fontfamily='IBM Plex Sans Thai')
     path = ROOT / 'docs' / 'img' / f'step6-max-depth-{run.name}.png'
     fig.savefig(path, dpi=130, bbox_inches='tight')
     return path

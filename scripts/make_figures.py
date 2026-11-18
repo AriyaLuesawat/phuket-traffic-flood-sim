@@ -8,7 +8,7 @@
   fig4-scenarios.png     network speed per scenario, one panel per period, 5 seeds + mean (output/scenarios/runs.csv)
   fig5-sensitivity.png   speed and trip time change, base -> test value per assumption (output/sensitivity, step 7)
 Outputs: docs/img/. Colours: blue = rain only / test value, orange = water on roads; checked with the dataviz
-palette validator (both pass light-surface checks). Thai labels use TH Sarabun New from ~/Library/Fonts.
+palette validator (both pass light-surface checks). Thai labels use IBM Plex Sans Thai (loopless) from fonts/.
 """
 import csv
 import statistics
@@ -27,10 +27,10 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 IMG = ROOT / 'docs' / 'img'
 BLUE, ORANGE, INK, MUTED, GRID = '#2a78d6', '#eb6834', '#1f1f1e', '#6b6a64', '#e4e3df'
 
-FONT = Path.home() / 'Library' / 'Fonts' / 'THSarabunNew.ttf'
-font_manager.fontManager.addfont(str(FONT))
-font_manager.fontManager.addfont(str(FONT.with_name('THSarabunNew Bold.ttf')))
-plt.rcParams.update({'font.family': ['TH Sarabun New', 'DejaVu Sans'], 'font.size': 15, 'axes.edgecolor': MUTED,
+FONTS = ROOT / 'fonts'  # IBM Plex Sans Thai (loopless Thai, SIL OFL, fonts/OFL.txt)
+for name in ('IBMPlexSansThai-Regular.ttf', 'IBMPlexSansThai-SemiBold.ttf', 'IBMPlexSansThai-Bold.ttf'):
+    font_manager.fontManager.addfont(str(FONTS / name))
+plt.rcParams.update({'font.family': ['IBM Plex Sans Thai', 'DejaVu Sans'], 'font.size': 11, 'axes.edgecolor': MUTED,
                      'axes.labelcolor': INK, 'xtick.color': MUTED, 'ytick.color': INK, 'text.color': INK,
                      'axes.spines.top': False, 'axes.spines.right': False, 'savefig.dpi': 200})
 
@@ -54,7 +54,7 @@ def fig_workflow():
         flood = i in (4, 5)
         ax.add_patch(FancyBboxPatch((x - w / 2, y - h / 2), w, h, boxstyle='round,pad=0,rounding_size=0.06',
                                     fc='#fff4ef' if flood else '#eef4fc', ec=ORANGE if flood else BLUE, lw=1.4))
-        ax.text(x, y, text, ha='center', va='center', fontsize=14, linespacing=1.0)
+        ax.text(x, y, text, ha='center', va='center', fontsize=9, linespacing=1.15)
         if i < len(steps) - 1:
             nx, ny = pos[i + 1]
             if ny == y:
@@ -82,13 +82,13 @@ def fig_counts():
         total = sum(int(s[k]) for k in ('car', 'bus', 'truck', 'motorcycle'))
         doh = s['source'].startswith('กรมทางหลวง 2')
         ax.scatter(x, y, s=14 + total / 700, color=ORANGE if doh else BLUE, alpha=0.8, edgecolor='white', lw=1, zorder=5)
-        ax.annotate(s['ref'], (x, y), fontsize=11, xytext=(4, 2), textcoords='offset points', color=INK)
+        ax.annotate(s['ref'], (x, y), fontsize=8, xytext=(4, 2), textcoords='offset points', color=INK)
     ax.scatter([], [], color=ORANGE, label='กรมทางหลวง (AADT 2562)')
     ax.scatter([], [], color=BLUE, label='กรมทางหลวงชนบท (AADT 2569)')
     ax.autoscale()
     ax.set_aspect('equal')
     ax.set_axis_off()
-    ax.legend(loc='lower right', frameon=False, title='ขนาดจุด = AADT รวมรถจักรยานยนต์', title_fontsize=13)
+    ax.legend(loc='lower right', frameon=False, title='ขนาดจุด = AADT รวมรถจักรยานยนต์', title_fontsize=9.5)
     fig.tight_layout()
     fig.savefig(IMG / 'fig2-count-stations.png')
     plt.close(fig)
@@ -117,13 +117,13 @@ def fig_flood():
             ax.set_xlim(x0, x1)
             ax.set_ylim(y0, y1)
             for (x, y), p in zip(xy, points):
-                ax.annotate(p['id'], (x, y), xytext=(5, 4), textcoords='offset points', fontsize=12, color=INK)
-            ax.set_title('ตัวเมืองและฉลอง', fontsize=15, loc='left')
+                ax.annotate(p['id'], (x, y), xytext=(5, 4), textcoords='offset points', fontsize=8.5, color=INK)
+            ax.set_title('ตัวเมืองและฉลอง', fontsize=11, loc='left')
         else:
-            ax.set_title('ทั้งเกาะ', fontsize=15, loc='left')
+            ax.set_title('ทั้งเกาะ', fontsize=11, loc='left')
         ax.set_xticks([])
         ax.set_yticks([])
-    axes[0].legend(loc='lower left', fontsize=13)
+    axes[0].legend(loc='lower left', fontsize=9.5)
     cb = fig.colorbar(im, ax=axes, shrink=0.6)
     cb.set_label('ความลึกน้ำสูงสุด (ม.) แสดงเฉพาะ ≥ 0.05 ม.')
     fig.savefig(IMG / 'fig3-max-depth.png', bbox_inches='tight')
@@ -147,17 +147,17 @@ def fig_scenarios():
             m = statistics.mean(v)
             ax.scatter([m], [y], s=90, marker='|', color=c, lw=2.4, zorder=3)
             if sc != 'dry':
-                ax.text(2, y, f'{100 * (m / dry - 1):+.0f}%', fontsize=13, color=MUTED, va='center')
-        ax.set_title(f'ชั่วโมงศึกษา {hour} น.', fontsize=16, loc='left')
+                ax.text(2, y, f'{100 * (m / dry - 1):+.0f}%', fontsize=9.5, color=MUTED, va='center')
+        ax.set_title(f'ชั่วโมงศึกษา {hour} น.', fontsize=11.5, loc='left')
         ax.set_yticks(list(ys), [s[1] for s in SCENARIOS])
         ax.set_xlim(0, 85)
         ax.grid(axis='x', color=GRID, lw=0.8)
         ax.set_axisbelow(True)
     for ax in axes[1]:
         ax.set_xlabel('ความเร็วเฉลี่ยของโครงข่าย (กม./ชม.)')
-    fig.text(0.01, 0.005, 'จุดจาง = แต่ละ seed (5 seed) · ขีด = ค่าเฉลี่ย · เส้นประ = ค่าเฉลี่ยวันไม่มีฝน · '
-             'ตัวเลข = เปลี่ยนเทียบวันไม่มีฝน · สีส้ม = มีน้ำบนถนน', fontsize=13, color=MUTED)
-    fig.tight_layout(rect=(0, 0.03, 1, 1))
+    fig.text(0.01, 0.012, 'จุดจาง = แต่ละ seed (5 seed) · ขีด = ค่าเฉลี่ย · เส้นประ = ค่าเฉลี่ยวันไม่มีฝน · '
+             'ตัวเลข = เปลี่ยนเทียบวันไม่มีฝน · สีส้ม = มีน้ำบนถนน', fontsize=9.5, color=MUTED)
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(IMG / 'fig4-scenarios.png')
     plt.close(fig)
 
@@ -198,16 +198,16 @@ def fig_sensitivity():
             ax.annotate('', (t, y), (b, y), arrowprops=dict(arrowstyle='-|>', color=BLUE, lw=1.6, shrinkA=5, shrinkB=4))
             ax.scatter([b], [y], s=60, facecolor='white', edgecolor=MUTED, lw=1.6, zorder=3)
             ax.scatter([t], [y], s=60, color=BLUE, zorder=3)
-            ax.text(t, y + 0.3, f'{t:+.1f}', ha='center', fontsize=12, color=INK)
+            ax.text(t, y + 0.3, f'{t:+.1f}', ha='center', fontsize=8.5, color=INK)
         ax.axvline(0, color=MUTED, lw=1)
-        ax.set_title(title, fontsize=16, loc='left')
+        ax.set_title(title, fontsize=11.5, loc='left')
         ax.grid(axis='x', color=GRID, lw=0.8)
         ax.set_axisbelow(True)
     axes[0].set_xlim(-55, 5)
     axes[1].set_xlim(-2, 50)
     axes[0].set_yticks(list(ys), [d[0] for d in data])
     fig.text(0.01, 0.01, 'วงกลมขาว = ค่าฐาน · จุดน้ำเงิน = ค่าทดสอบ · เทียบฝนอย่างเดียว (กรณีน้ำ) หรือวันไม่มีฝน (กรณีความจุ) · '
-             'ช่วงเร่งด่วนเช้า 29 ต.ค. 2569 เฉลี่ย 5 seed', fontsize=13, color=MUTED)
+             'ช่วงเร่งด่วนเช้า 29 ต.ค. 2569 เฉลี่ย 5 seed', fontsize=9.5, color=MUTED)
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(IMG / 'fig5-sensitivity.png')
     plt.close(fig)
