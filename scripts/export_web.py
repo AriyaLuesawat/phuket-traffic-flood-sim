@@ -4,7 +4,8 @@
     .venv/bin/python scripts/export_web.py runs         # only the scenario runs (after more playback runs finish)
     .venv/bin/python scripts/export_web.py basemap      # only basemap.json
     .venv/bin/python scripts/export_web.py roads        # only roads.bin / roads.json
-    cd web/app && ../../.venv/bin/python -m http.server 8000      # then open http://localhost:8000
+    .venv/bin/python scripts/pack_web_data.py           # then pack them into web/app/data-c (what the viewer reads)
+    cd web/app && ../../.venv/bin/python -m http.server 8773      # then open http://127.0.0.1:8773
 
 Exports (web/app/data/, generated, not committed):
   roads.bin / roads.json   every road edge open to cars or motorcycles: vertices (lon, lat, ground m) as

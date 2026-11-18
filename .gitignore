@@ -13,3 +13,6 @@ web/app/build_tmp/
 demand/
 data/synthetic/
 output-build.log
+web/app/data-c/
+web/app/config.local.js
+.claude/

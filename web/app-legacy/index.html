@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phuket Flood Traffic</title>
+<script src="https://unpkg.com/deck.gl@8.9.35/dist.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #05070d; --panel: rgba(8, 12, 22, 0.88); --line: rgba(90, 200, 255, 0.22);
+    --fg: #d8e6f5; --muted: #7f93ab; --cyan: #3de8ff; --pink: #ff3db8; --blue: #3d7bff; --amber: #ffb43d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+               font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; font-size: 14px; overflow: hidden; }
+  #map { position: absolute; inset: 0; }
+  #rainfx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #labels div { position: absolute; transform: translate(-50%, -50%); font-size: 13px; color: rgba(216,230,245,0.75);
+                text-shadow: 0 0 3px #05070d, 0 0 6px #05070d; white-space: nowrap; }
+  #labels div.city { font-size: 15px; font-weight: 600; color: rgba(216,230,245,0.95); }
+  .panel { position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+           padding: 12px 14px; backdrop-filter: blur(6px); box-shadow: 0 0 24px rgba(61, 232, 255, 0.08); }
+  #ctl { top: 12px; left: 12px; width: 340px; max-width: calc(100vw - 24px); max-height: calc(100vh - 150px); overflow-y: auto; }
+  h1 { font-size: 17px; margin: 0 0 2px; color: var(--cyan); letter-spacing: 0.3px; }
+  .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  label.f { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  select, button { font: inherit; color: var(--fg); background: #0d1426; border: 1px solid var(--line);
+                   border-radius: 6px; padding: 5px 8px; }
+  select { width: 100%; }
+  button { cursor: pointer; }
+  button.on { border-color: var(--cyan); color: var(--cyan); }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; margin: 10px 0 6px; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+  .stat b { display: block; font-size: 18px; color: var(--fg); }
+  .stat span { font-size: 11.5px; color: var(--muted); }
+  .note { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 8px; }
+  .warn { font-size: 12px; line-height: 1.5; border: 1px solid rgba(255, 180, 61, 0.4); color: #ffd58f;
+          border-radius: 8px; padding: 6px 8px; margin-top: 8px; }
+  .legend { font-size: 12.5px; line-height: 1.8; margin-top: 8px; }
+  .sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px;
+        box-shadow: 0 0 6px currentColor; }
+  #time { left: 12px; right: 12px; bottom: 22px; margin: 0 auto; max-width: 860px; }
+  #clock { font-weight: 600; min-width: 150px; color: var(--cyan); }
+  #slider { flex: 1; accent-color: var(--cyan); min-width: 120px; }
+  #chart { width: 100%; height: 90px; display: block; margin-top: 6px; }
+  .tags label { font-size: 12.5px; margin-right: 10px; cursor: pointer; white-space: nowrap; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cyan); font-size: 15px; }
+  .deck-tooltip { font-family: 'IBM Plex Sans Thai', system-ui, sans-serif !important; font-size: 13px !important;
+                  background: rgba(8, 12, 22, 0.95) !important; border: 1px solid var(--line); border-radius: 8px;
+                  max-width: 280px; color: var(--fg) !important; }
+  #credit { position: absolute; right: 8px; bottom: 2px; font-size: 10.5px; color: var(--muted); z-index: 1; }
+  #credit a { color: var(--muted); }
+  #live { border: 1px solid rgba(80, 160, 255, 0.45); border-radius: 8px; padding: 7px 9px; margin-top: 8px;
+          background: rgba(30, 70, 140, 0.18); }
+  #live .big { font-size: 15px; font-weight: 600; }
+  #live .small { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 3px; }
+  .tabs { display: flex; gap: 6px; margin: 8px 0 2px; }
+  .tabs button { flex: 1; }
+  #ctl:not(.live) #live { display: none; }
+  #ctl.live #simPane { display: none; }
+  .helpbox { font-size: 12.5px; line-height: 1.6; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .helpbox ol { margin: 4px 0 6px; padding-left: 18px; }
+  .helpbox[hidden] { display: none; }
+  .now { font-size: 13px; color: var(--cyan); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  .status { display: flex; gap: 10px; align-items: center; }
+  #liveIcon { font-size: 30px; line-height: 1; }
+  .badge { display: inline-block; margin-top: 3px; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #1d3f7a; color: #cfe0ff; }
+  .barsx { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); }
+  .impact { font-size: 13px; line-height: 1.55; margin-top: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+  .impact.flood { background: rgba(47,123,255,0.18); border: 1px solid rgba(47,123,255,0.5); }
+  .impact[hidden], .badge[hidden] { display: none; }
+  details { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  details summary { cursor: pointer; }
+  .lgtitle { color: var(--muted); font-size: 12px; }
+  .ramp { display: flex; align-items: center; gap: 3px; }
+  .ramp i { width: 22px; height: 6px; border-radius: 2px; }
+  .ramp span { font-size: 12.5px; margin: 0 4px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 8px 0 6px; vertical-align: middle; }
+  .dot.ring { background: transparent; border: 2px solid #fff; }
+  #ctl:not(.live) .liveonly, #ctl.live .simonly { display: none; }
+  .legend { border-top: 1px solid var(--line); padding-top: 6px; }
+  #liveRec { margin-top: 6px; font-size: 12px; line-height: 1.55; }
+  #liveRec b { color: #9cc3ff; }
+  #live button { margin-top: 6px; font-size: 12.5px; }
+  #liveBars { display: flex; gap: 1px; align-items: flex-end; height: 26px; margin-top: 5px; }
+  #liveBars i { flex: 1; background: #4d8dff; min-height: 1px; }
+  #liveBars i.z { background: rgba(127, 147, 171, 0.25); }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  #ctl.min > :not(.head) { display: none !important; }
+  #ctl.min .sub { display: none; }
+  #chartX { position: relative; height: 14px; font-size: 10.5px; color: var(--muted); }
+  #chartX span { position: absolute; top: 0; white-space: nowrap; }
+  #range { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  #viewbox { top: 12px; right: 12px; padding: 7px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; width: 150px; }
+  #viewbox .seg { display: flex; }
+  #viewbox .seg button { flex: 1; border-radius: 0; }
+  #viewbox .seg button:first-child { border-radius: 6px 0 0 6px; }
+  #viewbox .seg button:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
+  #viewbox button { font-size: 12.5px; padding: 4px 6px; }
+  #layers { display: flex; flex-direction: column; gap: 3px; padding: 2px 2px 0; }
+  #layers[hidden] { display: none; }
+  @media (max-width: 640px) {
+    #viewbox { top: auto; bottom: 130px; right: 16px; width: 132px; }
+    #ctl { max-height: 45vh; width: auto; left: 16px; right: 16px; max-width: none; }
+    #time { left: 16px; right: 16px; }
+    #clock { min-width: 0; }
+    #slider { flex-basis: 100%; order: 3; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="labels"></div>
+<canvas id="rainfx" aria-hidden="true"></canvas>
+<div id="credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · FABDEM · ESA WorldCover · ERA5 · <a href="https://github.com/AriyaLuesawat/phuket-traffic-flood-sim" target="_blank" rel="noopener">ที่มาและวิธีการ</a></div>
+<div id="loading">กำลังโหลดข้อมูล…</div>
+
+<div id="ctl" class="panel">
+  <div class="head">
+    <div><h1>ภูเก็ต: ฝน น้ำท่วม และการจราจร</h1>
+    <div class="sub" id="subtitle">ฝนจริงจากสถานีวัด · การจราจรเป็นค่าประมาณจากแบบจำลอง</div></div>
+    <div class="row" style="flex-wrap:nowrap">
+      <button id="helpBtn" aria-expanded="false" aria-controls="help" title="วิธีใช้">?</button>
+      <button id="fold" aria-label="ย่อหรือขยายแผงควบคุม" aria-expanded="true">–</button>
+    </div>
+  </div>
+  <div id="help" class="helpbox" hidden>
+    <b>วิธีใช้</b>
+    <ol>
+      <li><b>สถานการณ์ปัจจุบัน</b>: ดูว่าภูเก็ตฝนตกไหม ตกมากี่ชั่วโมงแล้ว และแผนที่จะแสดงการจราจรที่คาดว่าจะเกิดกับฝนระดับนั้น</li>
+      <li><b>สถานการณ์จำลอง</b>: เลือกช่วงเวลาและระดับฝนเอง เพื่อเทียบว่ารถช้าลงแค่ไหน</li>
+      <li>กด ▶ ด้านล่างเพื่อดูการจราจรเปลี่ยนทีละ 5 นาที · ชี้ที่ถนนเพื่อดูความเร็ว · มุมขวาบนสลับ 2D/3D และเลือกชั้นข้อมูล</li>
+    </ol>
+    สีถนนเป็น<b>ผลจากแบบจำลอง</b> ไม่ใช่สภาพจราจรจริงตอนนี้ แบบจำลองไม่ปิดถนน ถนนที่มีน้ำขังจะแสดงว่า "ควรเลี่ยง"
+  </div>
+  <div class="tabs" role="tablist">
+    <button id="tabLive" role="tab" aria-selected="false">สถานการณ์ปัจจุบัน</button>
+    <button id="tabSim" role="tab" class="on" aria-selected="true">สถานการณ์จำลอง</button>
+  </div>
+
+  <div id="live">
+    <div class="now" id="nowClock"></div>
+    <div aria-live="polite">
+    <div class="status"><span id="liveIcon" aria-hidden="true">⏳</span>
+      <div><div class="big" id="liveMain">กำลังโหลดข้อมูลฝน… (แผนที่แสดงวันไม่มีฝนไปก่อน)</div><span class="badge" id="liveLevel" hidden></span></div></div>
+    <div class="small" id="liveSub"></div>
+    <div id="liveBars" aria-hidden="true"></div>
+    <div class="barsx" aria-hidden="true"><span>24 ชม. ที่แล้ว</span><span>ตอนนี้</span></div>
+    <div class="impact" id="liveImpact" hidden></div>
+    <div class="impact flood" id="liveAdvice" hidden></div>
+    <button id="liveFlood" hidden>ดูตัวอย่างน้ำขังจากเหตุการณ์ 29 ต.ค. 2569</button>
+    <div class="small" id="liveTime"></div>
+    <details><summary>รายละเอียดและข้อจำกัด</summary><div id="liveRec"></div><div class="small" id="liveNote"></div></details>
+    </div>
+  </div>
+
+  <div id="simPane">
+  <label class="f" for="period">ช่วงเวลาของวัน</label>
+  <select id="period"></select>
+  <label class="f" for="scenario">สภาพฝน</label>
+  <select id="scenario"></select>
+  <div class="impact" id="simImpact"></div>
+  <div class="warn" id="warn"></div>
+  <div class="stats">
+    <div class="stat"><b id="sSpeed">–</b><span>ความเร็วเฉลี่ย ณ เวลานี้ (กม./ชม.)</span></div>
+    <div class="stat"><b id="sVeh">–</b><span>รถบนถนน (คัน)</span></div>
+    <div class="stat"><b id="sMean">–</b><span>ความเร็วเฉลี่ยทั้งชั่วโมง (กม./ชม.)</span></div>
+    <div class="stat"><b id="sAvoid">–</b><span>ถนนน้ำขัง ควรเลี่ยง (กม.)</span></div>
+  </div>
+  <svg id="chart" viewBox="0 0 320 90" preserveAspectRatio="none" role="img" aria-label="กราฟความเร็วเฉลี่ย"></svg>
+  <div id="chartX"></div>
+  <details><summary>รายละเอียดและข้อจำกัด</summary>
+    <div class="note" id="chartNote"></div>
+    <div class="note">
+      จุดแสง (ชั้น "รถ") แทนจำนวนรถเฉลี่ยบนถนนแต่ละเส้นในช่วง 5 นาทีนั้น <b>ไม่ใช่ตำแหน่งรถจริงรายคัน</b>
+      แผนที่และกราฟมาจากการจำลอง 1 รอบ ส่วนตัวเลขเฉลี่ยมาจาก 5 รอบที่สุ่มต่างกัน ·
+      ความสูงอาคารส่วนใหญ่ (95%) เป็นค่าสมมติเพื่อการแสดงผล · ภูมิประเทศจาก FABDEM · ไม่มีการปิดถนนในแบบจำลอง
+    </div>
+  </details>
+  </div>
+
+  <div class="legend">
+    <div class="lgtitle">วิธีอ่านแผนที่</div>
+    <div class="ramp"><span>สีถนน: เร็ว</span><i style="background:#2ecc71"></i><i style="background:#a3d935"></i><i style="background:#ffd23f"></i><i style="background:#ff8c3d"></i><i style="background:#ff3b3b"></i><span>รถติด</span></div>
+    <div class="small">≥ 60 · 40–60 · 20–40 · 10–20 · &lt; 10 กม./ชม. (เฉพาะถนนสายหลัก ซอยเป็นสีเทา)</div>
+    <div><span class="sw" style="background:#2f7bff;height:8px"></span>น้ำขังบนถนน: ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย</div>
+    <div><span class="sw" style="background:#7fb2ff;height:5px"></span>มีน้ำบนถนน: รถช้าลง</div>
+    <div class="liveonly"><span class="dot" style="background:#4d8dff"></span>สถานีวัดฝน (วงใหญ่ = ฝนมาก)</div>
+    <div class="simonly"><span class="dot ring"></span>จุดที่ข่าวรายงานน้ำท่วม 29 ต.ค. 2569</div>
+  </div>
+</div>
+
+<div id="viewbox" class="panel" role="group" aria-label="มุมมองและชั้นข้อมูล">
+  <div class="seg"><button id="v2d">2D</button><button id="v3d" class="on">3D</button></div>
+  <div class="seg"><button id="vTown">ตัวเมือง</button><button id="vIsland">ทั้งเกาะ</button></div>
+  <button id="layersBtn" aria-expanded="false" aria-controls="layers" title="เลือกชั้นข้อมูล">ชั้นข้อมูล ▾</button>
+  <div id="layers" class="tags" hidden>
+    <label><input type="checkbox" id="lRoads" checked> ถนน</label>
+    <label><input type="checkbox" id="lWater" checked> น้ำ</label>
+    <label><input type="checkbox" id="lBld" checked> อาคาร</label>
+    <label><input type="checkbox" id="lTer" checked> ภูมิประเทศ</label>
+    <label><input type="checkbox" id="lCars"> รถ</label>
+    <label><input type="checkbox" id="lDrops" checked> เม็ดฝน</label>
+    <label><input type="checkbox" id="lRain" checked> สถานีวัดฝน</label>
+    <label><input type="checkbox" id="lNews" checked> จุดข่าวน้ำท่วม</label>
+  </div>
+</div>
+
+<div id="time" class="panel">
+  <div class="row">
+    <button id="play" aria-label="เล่น">▶</button>
+    <span id="clock">–</span>
+    <input id="slider" type="range" min="0" max="17" value="0" step="1" aria-label="เวลา">
+    <select id="rate" aria-label="ความเร็วการเล่น" style="width:auto">
+      <option value="2">ช้า</option><option value="1" selected>ปกติ</option><option value="0.5">เร็ว</option>
+    </select>
+  </div>
+  <div id="range"></div>
+</div>
+
+<script>
+const D = 'data/';
+const EXAG = 1.0;           // vertical scale of terrain and buildings
+const MAX_DOTS_EDGE = 12;   // dots drawn per edge at most
+const MAX_DOTS = 40000;
+const ANIM_SIM_S = 30;      // simulated seconds per real second for the moving dots
+const TOWN = { longitude: 98.388, latitude: 7.884, zoom: 13.4 };
+const SMALL = matchMedia('(max-width: 640px), (pointer: coarse)').matches;  // phones and tablets
+const LIMIT = { minZoom: 9.6, maxZoom: 17.5, lon: [98.18, 98.55], lat: [7.70, 8.25] };  // keep Phuket on screen
+const ISLAND = { longitude: 98.34, latitude: 7.95, zoom: 10.4 };
+const ADD = { depthTest: false, blend: true, blendFunc: [770, 1], blendEquation: 32774 };  // additive glow
+
+const S = { meta: null, roads: null, run: null, water: null, frame: 0, playing: false, frameMs: 1000,
+            view: { ...TOWN, pitch: SMALL ? 0 : 55, bearing: SMALL ? 0 : -20, minZoom: LIMIT.minZoom, maxZoom: LIMIT.maxZoom }, pitch: SMALL ? 0 : 55, dots: null, last: 0, simT: 0 };
+const $ = id => document.getElementById(id);
+
+function speedColor(v, a = 255) {
+  if (!v) return [120, 135, 160, a];  // no vehicle in these 5 minutes: no speed to show
+  if (v >= 60) return [46, 204, 113, a];
+  if (v >= 40) return [163, 217, 53, a];
+  if (v >= 20) return [255, 210, 63, a];
+  if (v >= 10) return [255, 140, 61, a];
+  return [255, 59, 59, a];
+}
+
+async function load() {
+  const [meta, rj, rb, wj, wb, ter, base] = await Promise.all([
+    fetch(D + 'meta.json').then(r => r.json()), fetch(D + 'roads.json').then(r => r.json()),
+    fetch(D + 'roads.bin').then(r => r.arrayBuffer()), fetch(D + 'water.json').then(r => r.json()),
+    fetch(D + 'water.bin').then(r => r.arrayBuffer()), fetch(D + 'terrain.json').then(r => r.json()),
+    fetch(D + 'basemap.json').then(r => r.json())]);
+  S.meta = meta;
+  S.base = base;
+  $('labels').innerHTML = base.places.map(p => `<div class="${p.kind}">${p.kind === 'city' ? 'ตัวเมืองภูเก็ต' : p.name}</div>`).join('');
+  // roads
+  const [n, nv] = new Uint32Array(rb, 0, 2);
+  const off = new Uint32Array(rb, 8, n + 1);
+  const v = new Float32Array(rb, 8 + 4 * (n + 1), nv * 3);
+  for (let i = 2; i < v.length; i += 3) v[i] = v[i] * EXAG + 2;
+  const cum = new Float32Array(nv);  // distance along the edge at each vertex (m)
+  const edges = [];
+  for (let e = 0; e < n; e++) {
+    const a = off[e], b = off[e + 1];
+    cum[a] = 0;
+    for (let k = a + 1; k < b; k++) {
+      const dx = (v[3 * k] - v[3 * k - 3]) * 111320 * Math.cos(v[3 * k + 1] * Math.PI / 180);
+      const dy = (v[3 * k + 1] - v[3 * k - 2]) * 110540;
+      cum[k] = cum[k - 1] + Math.hypot(dx, dy);
+    }
+    edges.push({ i: e, path: v.subarray(3 * a, 3 * b), kind: rj.kind[e] });
+  }
+  S.roads = { n, off, v, cum, edges, meta: rj };
+  // water cells (step 6 flood run), squares of cell_m
+  const wn = new Uint32Array(wb, 0, 1)[0];
+  const wc = new Float32Array(wb, 4, wn * 3);
+  const wd = new Uint16Array(wb, 4 + 12 * wn, 3 * wn);
+  const h = wj.cell_m / 2, cells = [];
+  for (let i = 0; i < wn; i++) {
+    const lo = wc[3 * i], la = wc[3 * i + 1], z = wc[3 * i + 2] * EXAG + 1;
+    const dl = h / (111320 * Math.cos(la * Math.PI / 180)), dt = h / 110540;
+    cells.push({ i, poly: [[lo - dl, la - dt, z], [lo + dl, la - dt, z], [lo + dl, la + dt, z], [lo - dl, la + dt, z]] });
+  }
+  S.water = { n: wn, depth: wd, cells, meta: wj };
+  S.terrain = ter.map(l => l.map(p => [p[0], p[1], p[2] * EXAG]));
+  setupControls();
+  const q = new URLSearchParams(location.search);  // ?p=period&s=scenario&f=frame&v=2d|island
+  if (q.get('p')) { $('period').value = q.get('p'); $('period').onchange(); }
+  if (q.get('s')) $('scenario').value = q.get('s');
+  if (q.get('f')) S.frame = +q.get('f');
+  if (q.get('v') === '2d') $('v2d').onclick();
+  if (q.get('v') === 'island') $('vIsland').onclick();
+  $('loading').remove();
+  // live rain is the default menu; ?tab=sim, or a link that names a scenario (?s=), opens the step 8 results
+  const startLive = q.get('tab') ? q.get('tab') === 'live' : !q.get('s');
+  if (startLive) {  // until the live rain arrives the map shows a dry day at the hour nearest now, not a flood case
+    L.period = nearestPeriod();
+    $('period').value = L.period; $('period').onchange();
+    $('scenario').value = 'dry';
+    S.frame = S.meta.warmup_frames + Math.floor(new Date().getMinutes() / 5);
+  }
+  await selectRun();
+  setTab(startLive);
+  requestAnimationFrame(tick);
+}
+
+function setupControls() {
+  const m = S.meta;
+  const names = { night: 'กลางคืน', morning_peak: 'เร่งด่วนเช้า', late_morning: 'สาย', midday: 'เที่ยง',
+                  evening_peak: 'เร่งด่วนเย็น', evening: 'ค่ำ' };
+  $('period').innerHTML = Object.entries(m.periods).map(([p, h]) =>
+    `<option value="${p}"${p === 'morning_peak' ? ' selected' : ''}>${names[p] || p} (${h})</option>`).join('');
+  const fill = () => {
+    const p = $('period').value, cur = $('scenario').value;
+    $('scenario').innerHTML = m.scenarios.map(s => {
+      const ok = m.series[`${p}_${s}`];
+      return `<option value="${s}"${ok ? '' : ' disabled'}>${m.labels[s]}${ok ? '' : ' (ยังรันไม่เสร็จ)'}</option>`;
+    }).join('');
+    const want = m.series[`${p}_${cur}`] ? cur : (m.series[`${p}_heavy_reports`] ? 'heavy_reports' :
+                 m.scenarios.find(s => m.series[`${p}_${s}`]));
+    $('scenario').value = want;
+  };
+  fill();
+  $('scenario').value = m.series['morning_peak_heavy_reports'] ? 'heavy_reports' : $('scenario').value;
+  $('period').onchange = () => { fill(); selectRun(); };
+  $('scenario').onchange = selectRun;
+  $('slider').oninput = e => { S.frame = +e.target.value; frameChanged(); };
+  $('play').onclick = () => { S.playing = !S.playing; $('play').textContent = S.playing ? '❚❚' : '▶'; S.last = 0; };
+  $('rate').onchange = e => { S.frameMs = 1000 * +e.target.value; };
+  const view = (pitch, bearing, place) => {
+    S.view = { ...S.view, ...(place || {}), pitch, bearing, transitionDuration: 800 };
+    $('v2d').classList.toggle('on', pitch === 0); $('v3d').classList.toggle('on', pitch > 0);
+    deckgl.setProps({ initialViewState: S.view });
+    if (pitch !== S.pitch) {  // 2D: roads and water only; 3D: buildings and terrain back on (both can be changed)
+      for (const id of ['lBld', 'lTer']) $(id).checked = pitch > 0;
+      S.pitch = pitch;
+      render();
+    }
+  };
+  $('v2d').onclick = () => view(0, 0);
+  $('v3d').onclick = () => view(55, -20);
+  $('vTown').onclick = () => view(S.view.pitch, S.view.bearing, TOWN);
+  $('vIsland').onclick = () => view(S.view.pitch, S.view.bearing, ISLAND);
+  for (const id of ['lCars', 'lRoads', 'lBld', 'lTer', 'lWater', 'lNews', 'lRain']) $(id).onchange = render;
+  $('layersBtn').onclick = () => { const open = $('layers').hidden; $('layers').hidden = !open;
+    $('layersBtn').setAttribute('aria-expanded', String(open)); $('layersBtn').textContent = open ? 'ชั้นข้อมูล ▴' : 'ชั้นข้อมูล ▾'; };
+  const fold = min => { $('ctl').classList.toggle('min', min); $('fold').textContent = min ? '+' : '–';
+                        $('fold').setAttribute('aria-expanded', String(!min)); };
+  $('fold').onclick = () => fold(!$('ctl').classList.contains('min'));
+  if (innerWidth <= 640) fold(true);  // small screens start with the map visible
+  if (SMALL) {  // 2D first: no 13 MB of buildings and no terrain until 3D is pressed
+    $('v2d').classList.add('on'); $('v3d').classList.remove('on');
+    $('lBld').checked = false; $('lTer').checked = false;
+  }
+}
+
+async function selectRun() {
+  const p = $('period').value, s = $('scenario').value, m = S.meta;
+  const buf = await fetch(`${D}runs/${p}_${s}.bin`).then(r => r.arrayBuffer());
+  if (p !== $('period').value || s !== $('scenario').value) return;  // a later selection is loading
+  const n = S.roads.n, f = m.frames[p].length;
+  S.run = { p, s, f, flood: m.floods.includes(s), speed: new Uint8Array(buf, 0, f * n),
+            veh: new Uint8Array(buf, f * n, f * n), depth: buf.byteLength > 2 * f * n ? new Uint8Array(buf, 2 * f * n, f * n) : null };
+  $('slider').max = f - 1;
+  S.frame = Math.min(S.frame, f - 1);
+  const st = m.step8[`${p}_${s}`];
+  $('sMean').textContent = st ? `${st.speed_kmh}` : '–';
+  $('warn').innerHTML = warning(s);
+  const d0 = m.step8[`${p}_dry`];  // the one-line answer: how much slower than a dry day
+  $('simImpact').innerHTML = s === 'dry' || !st || !d0 ? 'วันไม่มีฝน ใช้เป็นค่าเทียบของสถานการณ์อื่น'
+    : `เทียบวันไม่มีฝนช่วงเดียวกัน: รถช้าลงราว <b>${Math.abs(Math.round(100 * (st.speed_kmh / d0.speed_kmh - 1)))}%</b> · ` +
+      `เดินทางนานขึ้นราว <b>${Math.round(100 * (st.trip_min / d0.trip_min - 1))}%</b>`;
+  frameChanged();
+}
+
+function warning(s) {
+  if (s === 'heavy_flood') return '<b>กรณีน้ำขังมาก (ค่าสูง):</b> น้ำจากแบบจำลองน้ำท่วมของเหตุการณ์ 29 ต.ค. 2569 ' +
+    'มีถนนน้ำขังราว 126 กม. มากกว่าที่ข่าวรายงาน <b>จึงน่าจะแรงเกินจริง</b>';
+  if (s === 'heavy_reports') return '<b>กรณีน้ำขังน้อย (ค่าต่ำ):</b> น้ำ 0.3 ม. เฉพาะถนนรอบ 14 จุดที่ข่าวรายงานเมื่อ 29 ต.ค. 2569 (17 กม.) ' +
+    'ความลึกและขอบเขตเป็นค่าที่ตั้งเอง';
+  if (s === 'dry') return 'ปริมาณรถปรับให้ตรงกับจุดนับของกรมทางหลวงและกรมทางหลวงชนบท ความเร็วยังไม่ได้เทียบกับข้อมูลจริง';
+  return 'สมมติให้ฝนตกเท่ากันทั้งเกาะ ไม่มีน้ำขัง และคนยังเดินทางเท่าเดิม ผลของฝนต่อความเร็วใช้ค่าจากงานวิจัยในสหรัฐฯ';
+}
+
+function frameChanged() {
+  const { p, s } = S.run, m = S.meta, k = S.frame, ser = m.series[`${p}_${s}`];
+  $('slider').value = k;
+  const warm = k < m.warmup_frames;
+  $('clock').textContent = `${m.frames[p][k]} น.${warm ? ' (ช่วงเตรียมระบบ)' : ''}`;
+  $('sSpeed').textContent = ser.speed_kmh[k].toFixed(1);
+  $('sVeh').textContent = ser.vehicles[k].toLocaleString('th-TH');
+  $('sAvoid').textContent = S.run.flood ? ser.avoid_km[k].toFixed(1) : '0';
+  buildDots();
+  drawChart();
+  render();
+}
+
+function buildDots() {
+  const { n, off, cum } = S.roads, k = S.frame, veh = S.run.veh, sp = S.run.speed;
+  const base = k * n;
+  let total = 0;
+  for (let e = 0; e < n; e++) total += Math.min(veh[base + e], MAX_DOTS_EDGE);
+  const scale = total > MAX_DOTS ? MAX_DOTS / total : 1;
+  const list = [];
+  for (let e = 0; e < n; e++) {
+    let c = Math.min(veh[base + e], MAX_DOTS_EDGE);
+    if (!c) continue;
+    c = Math.max(1, Math.round(c * scale));
+    const len = cum[off[e + 1] - 1];
+    if (len <= 0) continue;
+    for (let j = 0; j < c; j++) list.push(e, j / c, len, sp[base + e] / 3.6);
+  }
+  const m = list.length / 4;
+  const pos = new Float32Array(3 * m), col = new Uint8Array(4 * m);
+  for (let i = 0; i < m; i++) col.set(speedColor(sp[base + list[4 * i]], 230), 4 * i);
+  S.dots = { list, m, pos, col };
+  placeDots();
+}
+
+function placeDots() {
+  const { list, m, pos } = S.dots, { off, v, cum } = S.roads, t = S.simT;
+  for (let i = 0; i < m; i++) {
+    const e = list[4 * i], len = list[4 * i + 2];
+    let s = ((list[4 * i + 1] + t * list[4 * i + 3] / len) % 1) * len;
+    let a = off[e], b = off[e + 1] - 1;
+    while (b - a > 1) { const c = (a + b) >> 1; if (cum[c] <= s) a = c; else b = c; }
+    const seg = cum[b] - cum[a], f = seg > 0 ? (s - cum[a]) / seg : 0;
+    for (let d = 0; d < 3; d++) pos[3 * i + d] = v[3 * a + d] + f * (v[3 * b + d] - v[3 * a + d]);
+    pos[3 * i + 2] += 2;
+  }
+}
+
+function drawChart() {
+  const { p, s } = S.run, m = S.meta, f = S.run.f, svg = $('chart');
+  const W = 320, H = 90, y = v => H - 6 - (v / 90) * (H - 12), x = i => 4 + i * (W - 8) / (f - 1);
+  const line = (ser, color, dash) => ser ? `<polyline fill="none" stroke="${color}" stroke-width="1.6" ${dash ? 'stroke-dasharray="4 3"' : ''}
+    points="${ser.speed_kmh.map((v, i) => `${x(i)},${y(v)}`).join(' ')}" vector-effect="non-scaling-stroke"/>` : '';
+  const wx = x(m.warmup_frames) - (W - 8) / (f - 1) / 2;
+  svg.innerHTML = `<rect x="0" y="0" width="${wx}" height="${H}" fill="rgba(127,147,171,0.12)"/>` +
+    [30, 60, 90].map(v => `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(90,200,255,0.12)"/>
+      <text x="3" y="${y(v) + 9}" fill="#7f93ab" font-size="9">${v}</text>`).join('') +
+    (s !== 'dry' ? line(m.series[`${p}_dry`], '#7f93ab', true) : '') + line(m.series[`${p}_${s}`], '#d8e6f5') +
+    `<line x1="${x(S.frame)}" x2="${x(S.frame)}" y1="0" y2="${H}" stroke="#d8e6f5" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+  const fr = m.frames[p], end = S.meta.periods[p].replace(/^(\d+)/, h => String(+h + 1).padStart(2, '0'));
+  $('chartX').innerHTML = `<span style="left:0">${fr[0]}</span>` +
+    `<span style="left:${100 * wx / W}%">${fr[m.warmup_frames]} เริ่มชั่วโมงที่ศึกษา</span><span style="right:0">${end}</span>`;
+  $('range').textContent = `${fr[0]}–${end} น. · ช่วงเตรียมระบบถึง ${fr[m.warmup_frames]} น. แล้วเป็นชั่วโมงที่ศึกษา`;
+  const st = m.step8[`${p}_${s}`];
+  $('chartNote').innerHTML = `ความเร็วเฉลี่ยทั้งเกาะทุก 5 นาที (กม./ชม.) <span style="color:#d8e6f5">━ ${m.labels[s]}</span>` +
+    (s !== 'dry' ? ` <span style="color:#7f93ab">┅ ไม่มีฝน</span>` : '') + ' · ส่วนเทา = ช่วงเตรียมระบบ 30 นาที' +
+    (st ? `<br>เฉลี่ย ${st.seeds} รอบ: ${st.speed_kmh} (ต่ำสุด–สูงสุด ${st.speed_min}–${st.speed_max}) กม./ชม. · เวลาเดินทาง ${st.trip_min} นาที · ถนนรถติด ${st.congested_km} กม.` : '');
+}
+
+function waterDepthCm(i) {  // model flood depth of cell i at the current frame (hours 07:00, 08:00, 09:00)
+  const t = (S.frame * S.meta.frame_s - 1800) / 3600 + 1;   // 0 = 07:00 of the flood event
+  const a = Math.max(0, Math.min(1, Math.floor(t))), f = Math.max(0, Math.min(1, t - a));
+  const d = S.water.depth, n = S.water.n;
+  return (1 - f) * d[a * n + i] + f * d[Math.min(2, a + 1) * n + i];
+}
+
+let wetCache = {};
+function wetRoads(key, dep, base) {  // edges with >= 0.1 m of water in this frame, kept between renders
+  if (wetCache.key !== key) wetCache = { key, edges: S.roads.edges.filter(e => dep[base + e.i] >= 10) };
+  return wetCache.edges;
+}
+
+let bldLoading = null;
+function loadBuildings() {  // 13 MB, only needed in 3D: fetched the first time the layer is switched on
+  bldLoading = bldLoading || fetch(D + 'buildings.json').then(r => r.json()).then(bld => {
+    S.buildings = bld.map(b => ({ poly: b[0].map(p => [p[0], p[1], p[2] * EXAG]), h: b[1], tagged: b[2] }));
+    render();
+  });
+}
+
+// ---- live rain: ThaiWater public API (measured station rain, hourly; CORS allowed) ----
+const TW = 'https://api-v3.thaiwater.net/api/v1/thaiwater30/public/';
+const RAIN_MIN = 0.1;  // mm in an hour counted as rain (same lower bound as the light class, step 5)
+const L = { stations: [], hours: [], cls: null, stamp: 0, auto: false, timer: null };
+
+function setTab(isLive) {  // two menus: the step 8 results (as before) and the live rain, which drives the map
+  $('ctl').classList.toggle('live', isLive);
+  $('tabSim').classList.toggle('on', !isLive); $('tabLive').classList.toggle('on', isLive);
+  $('tabSim').setAttribute('aria-selected', String(!isLive)); $('tabLive').setAttribute('aria-selected', String(isLive));
+  if (isLive) {
+    L.auto = true;  // the map follows the rain now
+    if (L.cls) { L.auto = false; applyLive(L.cls); }
+    if (!L.timer) { live(); L.timer = setInterval(live, 10 * 60 * 1000); }  // stations report hourly
+  }
+  $('subtitle').textContent = isLive ? 'ฝนจริงจากสถานีวัด · การจราจรเป็นค่าประมาณจากแบบจำลอง'
+                                     : 'ลองเลือกช่วงเวลาและระดับฝน ดูว่ารถช้าลงแค่ไหน (ผลจากแบบจำลอง)';
+  render();
+}
+function tickNow() {  // wall clock in Phuket (Asia/Bangkok), Thai date with the Buddhist year
+  const d = new Date(), tz = { timeZone: 'Asia/Bangkok' };
+  $('nowClock').textContent = 'เวลาปัจจุบัน ' + d.toLocaleTimeString('th-TH', { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+    ' น. · ' + d.toLocaleDateString('th-TH', { ...tz, weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+}
+tickNow();
+setInterval(tickNow, 1000);
+$('helpBtn').onclick = () => { const open = $('help').hidden; $('help').hidden = !open; $('helpBtn').setAttribute('aria-expanded', String(open)); };
+
+function rainClass(mm) {  // hourly classes of HCM 2010 used in step 5
+  return mm < RAIN_MIN ? 'dry' : mm < 2.54 ? 'light' : mm < 6.35 ? 'medium' : 'heavy';
+}
+
+async function live() {
+  try {
+    const all = (await fetch(TW + 'rain_24h').then(r => r.json())).data.filter(r => r.geocode.province_code === '83');
+    L.stations = all.map(r => ({ id: r.station.id, name: r.station.tele_station_name.th, agency: r.agency.agency_shortname.th,
+      lat: r.station.tele_station_lat, lon: r.station.tele_station_long, r1: r.rain_1h ?? null, r24: r.rain_24h,
+      time: r.rainfall_datetime.slice(5) }));
+    // hourly series of the telemetry stations (the others report only daily totals)
+    const series = await Promise.all(all.filter(r => r.rain_1h != null).map(r =>
+      fetch(`${TW}rain_24h_graph?station_type=tele_station&station_id=${r.station.id}`).then(x => x.json())
+        .then(x => ({ name: r.station.tele_station_name.th, data: x.data || [] })).catch(() => null)));
+    const byHour = {};  // hour -> [max mm, station, stations with rain, stations reporting]
+    for (const s of series.filter(Boolean)) for (const h of s.data) {
+      if (h.rainfall_value == null) continue;
+      const cur = byHour[h.rainfall_datetime] || (byHour[h.rainfall_datetime] = [-1, '', 0, 0]);
+      if (h.rainfall_value > cur[0]) { cur[0] = h.rainfall_value; cur[1] = s.name; }
+      cur[2] += h.rainfall_value >= RAIN_MIN;
+      cur[3] += 1;
+    }
+    L.hours = Object.keys(byHour).sort().map(t => ({ t, mm: byHour[t][0], at: byHour[t][1], wet: byHour[t][2], of: byHour[t][3] }));
+    L.stamp = Date.now();
+    showLive();
+    render();
+  } catch (e) {
+    $('liveMain').textContent = 'โหลดข้อมูลฝนไม่ได้';
+    $('liveSub').textContent = 'ThaiWater ไม่ตอบ ลองใหม่ภายหลัง (' + e.message + ')';
+  }
+}
+
+function showLive() {
+  const h = L.hours;
+  if (!h.length) { $('liveMain').textContent = 'ยังไม่มีข้อมูลฝนรายชั่วโมง'; return; }
+  const last = h[h.length - 1], raining = last.mm >= RAIN_MIN;
+  let n = 0;  // consecutive hours, ending at the latest hour, with rain at any station (or without, if dry now)
+  for (let i = h.length - 1; i >= 0 && (h[i].mm >= RAIN_MIN) === raining; i--) n++;
+  const span = h.length;
+  const wet24 = h.slice(-24).filter(x => x.mm >= RAIN_MIN).length;
+  const top24 = L.stations.reduce((a, b) => (b.r24 || 0) > (a.r24 || 0) ? b : a, L.stations[0]);
+  const names = { dry: 'ไม่มีฝน', light: 'ฝนเล็กน้อย', medium: 'ฝนปานกลาง', heavy: 'ฝนหนัก' };
+  L.cls = rainClass(last.mm);
+  const more = n >= span ? ' (อย่างน้อย เท่าที่มีข้อมูลย้อนหลัง)' : '';
+  $('liveIcon').textContent = !raining ? '☀️' : L.cls === 'heavy' ? '⛈️' : '🌧️';
+  $('liveMain').textContent = raining ? `ฝนกำลังตก · ต่อเนื่องมา ${n} ชม.${more}` : `ตอนนี้ไม่มีฝน · หยุดมา ${n} ชม.${more}`;
+  $('liveLevel').hidden = !raining;
+  $('liveLevel').textContent = names[L.cls];
+  const spotty = raining && last.wet <= Math.max(2, last.of / 4);  // rain at only a few stations
+  $('liveSub').innerHTML = (raining ? `ชั่วโมงล่าสุดฝนตก <b>${last.wet} จาก ${last.of} สถานี</b>` +
+      (spotty ? ' (ตกเป็นบางจุด ที่อื่นอาจไม่มีฝน)' : '') + `<br>ตกมากที่สุดที่ <b>${last.at}</b> ${last.mm} มม.<br>` : '') +
+    `24 ชม. ที่ผ่านมา ฝนตก ${wet24} ชม. · ฝนสะสมมากที่สุด ${top24 ? top24.r24 + ' มม. ที่' + top24.name : '–'}`;
+  $('liveTime').textContent = `ข้อมูลฝนถึง ${last.t.slice(11)} น. (${+last.t.slice(8, 10)}/${+last.t.slice(5, 7)}) จาก ThaiWater · อัปเดตเองทุก 10 นาที`;
+  const lastDay = h.slice(-24), mx = Math.max(6.35, ...lastDay.map(x => x.mm));
+  $('liveBars').innerHTML = lastDay.map(x =>
+    `<i class="${x.mm >= RAIN_MIN ? '' : 'z'}" style="height:${Math.max(4, 100 * x.mm / mx)}%" title="${x.t.slice(5)} น.: ${x.mm} มม."></i>`).join('');
+  // what this rain means in the work done so far
+  const maxDay = Math.max(0, ...L.stations.map(x => x.r24 || 0));
+  const day = maxDay < 0.1 ? 'ไม่มีฝน' : maxDay <= 10 ? 'ฝนเล็กน้อย' : maxDay <= 35 ? 'ฝนปานกลาง' : maxDay <= 90 ? 'ฝนหนัก' : 'ฝนหนักมาก';
+  const FACT = { dry: 'ไม่ลด', light: 'ความเร็ว ×0.98 ความจุ ×0.98', medium: 'ความเร็ว ×0.94 ความจุ ×0.93',
+                 heavy: 'ความเร็ว ×0.93 ความจุ ×0.86' };
+  L.period = nearestPeriod();
+  const st = S.meta.step8, P = S.meta.periods[L.period];
+  const v = st[`${L.period}_${L.cls}`], v0 = st[`${L.period}_dry`];
+  const chg = v && v0 && L.cls !== 'dry' ? ` ความเร็วเฉลี่ย ${v.speed_kmh} กม./ชม. (${(100 * (v.speed_kmh / v0.speed_kmh - 1)).toFixed(1)}% จากวันไม่มีฝน)` : v ? ` ความเร็วเฉลี่ย ${v.speed_kmh} กม./ชม.` : '';
+  L.flood = maxDay > 90;  // TMD daily class "very heavy" (> 90 mm) at a station; not a flood forecast (no checked threshold)
+  $('liveRec').innerHTML =
+    `<b>ควรใช้ในแผนที่: ${names[L.cls]}</b> (ระดับรายชั่วโมงของ HCM 2010 จากสถานีที่ฝนมากที่สุดในชั่วโมงล่าสุด)<br>` +
+    `ตรงกับ <b>ขั้นที่ 8 สถานการณ์ "${names[L.cls]}"</b> ช่วงเวลาที่ใกล้ตอนนี้ (${P} น.) ` +
+    `ใช้ค่าปรับจากขั้นที่ 5: ${FACT[L.cls]} ·${chg}<br>` +
+    `ฝนสะสม 24 ชม. สูงสุด ${maxDay} มม. = <b>${day}</b> ตามเกณฑ์รายวันของกรมอุตุนิยมวิทยา<br>` +
+    (L.flood ? `ฝนหนักมาก: เปิดให้ดูตัวอย่างน้ำบนถนนจากเหตุการณ์ 29 ต.ค. 2569 (ขั้นที่ 7–8, ค่าต่ำ = น้ำจุดข่าว)`
+             : `ยังไม่ถึงฝนหนักมาก (> 90 มม./24 ชม. ตามเกณฑ์กรมอุตุฯ)`) +
+    `<br><span style="color:var(--muted)">หน้าเว็บนี้<b>ไม่ได้ทำนายน้ำท่วม</b> ยังไม่มีข้อมูลพอบอกได้ว่าฝนเท่าไรภูเก็ตจึงน้ำขัง ` +
+    `เกณฑ์ 90 มม. เป็นระดับฝนรายวันของกรมอุตุนิยมวิทยา ใช้เพียงเพื่อเสนอให้ดูตัวอย่างน้ำขัง</span>`;
+  const trip = v && v0 ? Math.round(100 * (v.trip_min / v0.trip_min - 1)) : 0;
+  $('liveImpact').hidden = false;
+  $('liveImpact').innerHTML = L.cls === 'dry'
+    ? `<b>การจราจร:</b> แผนที่แสดงวันไม่มีฝนช่วง ${P} น. (ค่าประมาณจากแบบจำลอง)`
+    : `<b>การจราจร:</b> แผนที่ใช้ระดับของสถานีที่ฝนมากที่สุด ถ้า${names[L.cls]}ตกทั่วเกาะช่วง ${P} น. แบบจำลองประมาณว่ารถช้าลงราว ` +
+      `<b>${Math.abs(Math.round(100 * (v.speed_kmh / v0.speed_kmh - 1)))}%</b> และเดินทางนานขึ้นราว <b>${trip}%</b> เทียบวันไม่มีฝน`;
+  $('liveAdvice').hidden = !L.flood;
+  $('liveAdvice').innerHTML = `<b>ฝนหนักมาก</b> ฝนสะสม 24 ชม. เกิน 90 มม. (${maxDay} มม.) ตามเกณฑ์กรมอุตุนิยมวิทยา · ` +
+    'เมื่อฝนตกหนักต่อเนื่อง 26–29 ต.ค. 2569 มีข่าวรายงานน้ำท่วมขังหลายจุด หน้าเว็บนี้ไม่ได้ทำนายว่าจะท่วมที่ไหน';
+  $('liveFlood').hidden = !L.flood;
+  $('liveNote').textContent = 'นับชั่วโมงที่สถานีใดสถานีหนึ่งมีฝน ≥ 0.1 มม. · ผลจำลองเป็นชุดที่รันไว้ล่วงหน้าตามระดับฝน ' +
+    '(ฝนเท่ากันทั้งเกาะ) ไม่ใช่การจำลองสด และไม่ใช่สภาพจราจรจริงตอนนี้';
+  if (L.auto) { L.auto = false; applyLive(L.cls); }  // first load: the map follows the rain now
+  else if ($('ctl').classList.contains('live')) {
+    // every refresh (10 min): when the rain level or the nearest period changes, e.g. the rain stops, the map follows.
+    // The water case picked with its button stays while the rain is still very heavy
+    const target = L.want === 'heavy_reports' && L.flood ? 'heavy_reports' : L.cls;
+    if (target !== L.want || L.period !== $('period').value) applyLive(target);
+  }
+}
+
+function nearestPeriod() {
+  const now = new Date(), hr = now.getHours() + now.getMinutes() / 60, P = S.meta.periods;
+  const dist = p => { const d = Math.abs(hr - parseInt(P[p])); return Math.min(d, 24 - d); };
+  return Object.keys(P).sort((a, b) => dist(a) - dist(b))[0];
+}
+
+function applyLive(scenario) {
+  L.want = scenario;  // drops wait for this run to be on the map
+  S.frame = S.meta.warmup_frames + Math.floor(new Date().getMinutes() / 5);  // same minute as now, in the study hour
+  $('period').value = L.period; $('period').onchange();
+  $('scenario').value = scenario; selectRun();
+}
+$('tabSim').onclick = () => setTab(false);
+$('tabLive').onclick = () => setTab(true);
+$('liveFlood').onclick = () => applyLive('heavy_reports');
+
+// ---- falling rain drops: decoration only, density by the rain class of the scenario on the map ----
+const DROPS = { dry: 0, light: 350, medium: 1000, heavy: 2200 };  // drops on a 1600x1000 screen
+const RAIN_TOP = 700;  // m above ground where 3D drops start
+const fx = { drops: [], last: 0, w: [], wn: 0 };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function rainCls() {
+  // no drops until the scenario on the map is the right one: the run is loaded and, in the live menu, the live
+  // rain has arrived and been applied (before that the map still shows the default scenario)
+  if (!S.run || ($('ctl').classList.contains('live') && S.run.s !== L.want)) return 'dry';
+  const s = S.run.s;
+  return s.startsWith('heavy') ? 'heavy' : s;
+}
+function rainFx(now) {
+  const cv = $('rainfx'), dpr = Math.min(devicePixelRatio || 1, 2);
+  if (cv.width !== innerWidth * dpr || cv.height !== innerHeight * dpr) { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, innerWidth, innerHeight);
+  const cls = rainCls(), on = $('lDrops').checked, in3d = (S.view.pitch || 0) > 5;
+  const dt0 = fx.last ? Math.min(50, now - fx.last) : 16;
+  if (in3d) {  // drops as short lines in world space, so they get perspective; the 2D overlay is cleared
+    rain3d(on ? DROPS[cls] : 0, dt0, cls);
+    fx.last = now;
+    requestAnimationFrame(rainFx);
+    return;
+  }
+  if (fx.wn) { fx.w = []; fx.wn = 0; render(); }
+  // 2D: softer than 3D, fewer drops in three depth layers (far = faint, short, slow; near = brighter, longer)
+  const want = on ? Math.round((SMALL ? 0.4 : 0.6) * DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
+  while (fx.drops.length < want) {
+    const z = Math.random() < 0.5 ? 0 : Math.random() < 0.6 ? 1 : 2;
+    fx.drops.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, z,
+                    v: [0.35, 0.55, 0.8][z] * (0.85 + Math.random() * 0.3), l: [6, 10, 15][z] * (0.8 + Math.random() * 0.4) });
+  }
+  fx.drops.length = want;
+  const dt = fx.last ? Math.min(50, now - fx.last) : 16;
+  fx.last = now;
+  const speed = cls === 'heavy' ? 1.15 : cls === 'medium' ? 1.0 : 0.85, wind = 0.1;
+  const heavy = cls === 'heavy' ? 1.25 : 1;
+  g.lineCap = 'round';
+  for (let z = 0; z < 3; z++) {
+    g.strokeStyle = `rgba(190, 215, 255, ${[0.13, 0.22, 0.32][z] * heavy})`;
+    g.lineWidth = [0.8, 1, 1.3][z];
+    g.beginPath();
+    for (const d of fx.drops) {
+      if (d.z !== z) continue;
+      if (!reduceMotion) {
+        d.y += d.v * speed * dt;
+        d.x += d.v * speed * dt * wind;
+        if (d.y > innerHeight + d.l) { d.y = -d.l; d.x = Math.random() * innerWidth; }
+        if (d.x > innerWidth) d.x -= innerWidth;
+      }
+      g.moveTo(d.x, d.y);
+      g.lineTo(d.x - d.l * wind, d.y - d.l);
+    }
+    g.stroke();
+  }
+  requestAnimationFrame(rainFx);
+}
+requestAnimationFrame(rainFx);
+
+function rain3d(per, dt, cls) {
+  const v = S.view, deg = 360 / (256 * 2 ** v.zoom);  // degrees per screen pixel at this zoom
+  const hx = innerWidth * deg * 0.9, hy = innerHeight * deg * 1.4;  // a little wider than the screen (far side in 3D)
+  // same density as the 2D overlay: `per` drops per 1600x1000 px of ground, over the whole box (about 5 screens)
+  const want = Math.min(SMALL ? 3000 : 15000, Math.round((SMALL ? 0.4 : 1) * per * (2 * hx / deg) * (2 * hy / deg) / 1.6e6));
+  const spawn = d => { d.lon = v.longitude + (Math.random() * 2 - 1) * hx; d.lat = v.latitude + (Math.random() * 2 - 1) * hy;
+                       d.z = Math.random() * RAIN_TOP; d.v = 0.12 + Math.random() * 0.08; return d; };
+  while (fx.w.length < want) fx.w.push(spawn({}));
+  fx.w.length = want;
+  const speed = cls === 'heavy' ? 1.3 : cls === 'medium' ? 1.0 : 0.8;
+  for (const d of fx.w) {
+    if (!reduceMotion) d.z -= d.v * speed * dt;
+    if (d.z < 0 || Math.abs(d.lon - v.longitude) > hx || Math.abs(d.lat - v.latitude) > hy) { spawn(d); d.z = RAIN_TOP; }
+  }
+  fx.wn = want;
+  fx.len = cls === 'heavy' ? 140 : 100;  // m; shorter lines read as dots from the 3D camera
+  render();
+}
+
+function render() {
+  if (!S.run) return;
+  const { n } = S.roads, k = S.frame, base = k * n, sp = S.run.speed, dep = S.run.depth, trig = `${S.run.p}${S.run.s}${k}`;
+  const layers = [new deck.PathLayer({ id: 'coast', data: S.base.coast, getPath: d => d, widthUnits: 'pixels',
+    getWidth: 1.2, getColor: [120, 150, 190, 150] })];
+  if ($('lTer').checked) layers.push(new deck.PathLayer({ id: 'terrain', data: S.terrain, getPath: d => d,
+    getColor: [40, 110, 170, 70], widthUnits: 'pixels', getWidth: 1, parameters: ADD }));
+  if ($('lWater').checked && S.run.s === 'heavy_flood') layers.push(new deck.SolidPolygonLayer({ id: 'water',
+    data: S.water.cells, getPolygon: c => c.poly, getFillColor: c => {
+      const d = waterDepthCm(c.i);
+      return d < 10 ? [0, 0, 0, 0] : d < 30 ? [60, 120, 255, 45] : [61, 123, 255, 85];
+    }, updateTriggers: { getFillColor: trig }, parameters: { depthTest: false } }));
+  if ($('lBld').checked && !S.buildings) loadBuildings();
+  if ($('lBld').checked && S.buildings) layers.push(new deck.PolygonLayer({ id: 'buildings', data: S.buildings,
+    getPolygon: b => b.poly, extruded: true, wireframe: true, filled: false, getElevation: b => b.h * EXAG,
+    getLineColor: b => b.tagged ? [190, 90, 255, 140] : [140, 70, 220, 40], parameters: ADD }));
+  if ($('lRoads').checked) {
+    if (dep) layers.push(new deck.PathLayer({ id: 'roadwater', data: wetRoads(trig, dep, base),
+      getPath: e => e.path, positionFormat: 'XYZ', widthUnits: 'pixels', widthMinPixels: 3,
+      getWidth: e => dep[base + e.i] >= 30 ? 7 : 4,
+      getColor: e => dep[base + e.i] >= 30 ? [47, 123, 255, 230] : [127, 178, 255, 170],
+      updateTriggers: { getWidth: trig, getColor: trig }, parameters: { depthTest: false } }));
+    layers.push(new deck.PathLayer({ id: 'roads', data: S.roads.edges, getPath: e => e.path, positionFormat: 'XYZ',
+      widthUnits: 'pixels', getWidth: e => e.kind <= 2 ? 3 : e.kind === 3 ? 2.2 : e.kind === 4 ? 1.6 : 0.7,
+      // speed colour on the main roads only (motorway..tertiary); minor roads stay grey so the picture reads
+      getColor: e => e.kind <= 4 ? speedColor(sp[base + e.i], 235) : [92, 100, 120, 110],
+      updateTriggers: { getColor: trig }, pickable: true, autoHighlight: true, highlightColor: [255, 255, 255, 220],
+      parameters: { depthTest: false } }));
+  }
+  if ($('lCars').checked && S.dots) layers.push(new deck.ScatterplotLayer({ id: 'cars',
+    data: { length: S.dots.m, attributes: { getPosition: { value: S.dots.pos, size: 3 },
+                                             getFillColor: { value: S.dots.col, size: 4, normalized: true } } },
+    radiusUnits: 'pixels', getRadius: 1.8, parameters: ADD, updateTriggers: { getPosition: S.simT } }));
+  if ($('lNews').checked && S.run.flood) layers.push(new deck.ScatterplotLayer({ id: 'news', data: S.meta.news,
+    getPosition: d => [d.lon, d.lat, 5], radiusUnits: 'pixels', getRadius: 9, stroked: true, filled: true,
+    getFillColor: [255, 255, 255, 25], getLineColor: [255, 255, 255, 220], lineWidthUnits: 'pixels', getLineWidth: 2,
+    pickable: true, parameters: { depthTest: false } }));
+  if ($('lRain').checked && L.stations.length && $('ctl').classList.contains('live')) layers.push(new deck.ScatterplotLayer({ id: 'rain', data: L.stations,
+    getPosition: d => [d.lon, d.lat, 8], radiusUnits: 'pixels', getRadius: d => 5 + Math.min(14, 1.6 * (d.r1 || 0)),
+    stroked: true, getFillColor: d => d.r1 >= 0.1 ? [77, 141, 255, 200] : d.r1 === 0 ? [127, 147, 171, 60] : [0, 0, 0, 0],
+    getLineColor: [210, 225, 255, 220], lineWidthUnits: 'pixels', getLineWidth: 1.2, pickable: true,
+    updateTriggers: { getRadius: L.stamp, getFillColor: L.stamp }, parameters: { depthTest: false } }));
+  if (fx.wn) layers.push(new deck.LineLayer({ id: 'drops', data: fx.w, getSourcePosition: d => [d.lon, d.lat, d.z],
+    getTargetPosition: d => [d.lon - 0.00004, d.lat, d.z + fx.len], getColor: [190, 215, 255, 170], widthUnits: 'pixels',
+    getWidth: 1.4, updateTriggers: { getSourcePosition: fx.last, getTargetPosition: fx.last } }));
+  deckgl.setProps({ layers });
+}
+
+function tooltip({ object, layer }) {
+  if (!object || !layer) return null;
+  if (layer.id === 'rain') return { html: `<b>${object.name}</b> (${object.agency})<br>` +
+    `ฝน 1 ชม. ล่าสุด: ${object.r1 == null ? 'ไม่มีข้อมูล' : object.r1 + ' มม.'}<br>ฝน 24 ชม.: ${object.r24 ?? '–'} มม.<br>` +
+    `เวลาข้อมูล: ${object.time} น.` };
+  if (layer.id === 'news') return { html: `<b>${object.id} ${object.location}</b><br>ข่าวรายงาน: ${object.severity}<br>29 ต.ค. 2569` };
+  if (layer.id !== 'roads') return null;
+  const e = object.i, k = S.frame * S.roads.n + e, r = S.roads.meta;
+  const v = S.run.speed[k], c = S.run.veh[k], d = S.run.depth ? S.run.depth[k] : 0;
+  let msg = '';
+  if (d >= 30) msg = `<br><b style="color:#8fb4ff">ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย</b> (น้ำราว ${(d / 100).toFixed(2)} ม.)`;
+  else if (d >= 10) msg = `<br><span style="color:#8fb4ff">รถช้าลง มีน้ำบนถนน</span> (น้ำราว ${(d / 100).toFixed(2)} ม.)`;
+  return { html: `<b>${r.name[e] || r.kinds[r.kind[e]]}</b><br>ความเร็วเฉลี่ย 5 นาที: ${v ? v + ' กม./ชม.' : 'ไม่มีรถผ่าน'}` +
+    `<br>รถบนถนนเฉลี่ย: ${c} คัน · ยาว ${Math.round(r.length[e])} ม.${msg}` };
+}
+
+const deckgl = new deck.DeckGL({ container: 'map', views: new deck.MapView({ repeat: false }),
+  initialViewState: S.view, controller: true, getTooltip: tooltip,
+  onViewStateChange: ({ viewState }) => {  // returned view state wins: the camera cannot leave the island area
+    const c = (v, [a, b]) => Math.min(b, Math.max(a, v));
+    S.view = { ...viewState, longitude: c(viewState.longitude, LIMIT.lon), latitude: c(viewState.latitude, LIMIT.lat),
+               zoom: c(viewState.zoom, [LIMIT.minZoom, LIMIT.maxZoom]) };
+    return S.view;
+  }, onAfterRender: placeLabels });
+
+function placeLabels() {  // HTML labels: deck.gl text does not shape Thai vowels and tone marks
+  const vp = deckgl.getViewports()[0], box = $('labels');
+  if (!vp || !S.base) return;
+  S.base.places.forEach((p, i) => {
+    const [x, y] = vp.project([p.lon, p.lat, 0]), el = box.children[i];
+    el.style.left = `${x}px`; el.style.top = `${y}px`;
+  });
+}
+
+function tick(now) {
+  if (S.dots) {
+    const dt = S.last ? (now - S.last) / 1000 : 0;
+    S.last = now;
+    S.simT += dt * ANIM_SIM_S;
+    if (S.playing) {
+      S.acc = (S.acc || 0) + dt * 1000;
+      if (S.acc >= S.frameMs) { S.acc = 0; S.frame = (S.frame + 1) % S.run.f; frameChanged(); }
+    }
+    if ($('lCars').checked) { placeDots(); render(); }
+  }
+  requestAnimationFrame(tick);
+}
+
+load().catch(err => { $('loading').textContent = 'โหลดข้อมูลไม่ได้: ' + err.message + ' (รัน scripts/export_web.py และเปิดผ่าน http.server)'; });
+</script>
+</body>
+</html>

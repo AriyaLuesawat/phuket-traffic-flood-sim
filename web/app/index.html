@@ -4,120 +4,195 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phuket Flood Traffic</title>
-<script src="https://unpkg.com/deck.gl@8.9.35/dist.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<!-- optional, gitignored: a high-resolution satellite provider with a key (see config.example.js) -->
+<script src="config.local.js" onerror="this.remove()"></script>
 <style>
+  /* panel look of prototype D: dark navy glass, cyan accents */
   :root {
-    --bg: #05070d; --panel: rgba(8, 12, 22, 0.88); --line: rgba(90, 200, 255, 0.22);
-    --fg: #d8e6f5; --muted: #7f93ab; --cyan: #3de8ff; --pink: #ff3db8; --blue: #3d7bff; --amber: #ffb43d;
+    --bg: #070b12; --panel: rgba(11, 18, 30, 0.86); --line: rgba(115, 175, 235, 0.16);
+    --fg: #e2edf8; --title: #f4f9ff; --muted: #8096b0; --subtle: #4c627a; --accent: #38bdf8; --accent2: #7dd3fc;
+    --card: rgba(18, 28, 46, 0.65); --amber: #fbbf24;
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
-               font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; font-size: 14px; overflow: hidden; }
+               font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; font-size: 13.5px; line-height: 1.5; overflow: hidden; }
   #map { position: absolute; inset: 0; }
   #rainfx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  /* place names (HTML, Thai shaped by the browser); moved with a transform only */
   #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-  #labels div { position: absolute; transform: translate(-50%, -50%); font-size: 13px; color: rgba(216,230,245,0.75);
-                text-shadow: 0 0 3px #05070d, 0 0 6px #05070d; white-space: nowrap; }
-  #labels div.city { font-size: 15px; font-weight: 600; color: rgba(216,230,245,0.95); }
-  .panel { position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-           padding: 12px 14px; backdrop-filter: blur(6px); box-shadow: 0 0 24px rgba(61, 232, 255, 0.08); }
-  #ctl { top: 12px; left: 12px; width: 340px; max-width: calc(100vw - 24px); max-height: calc(100vh - 150px); overflow-y: auto; }
-  h1 { font-size: 17px; margin: 0 0 2px; color: var(--cyan); letter-spacing: 0.3px; }
-  .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
-  label.f { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
-  select, button { font: inherit; color: var(--fg); background: #0d1426; border: 1px solid var(--line);
-                   border-radius: 6px; padding: 5px 8px; }
-  select { width: 100%; }
-  button { cursor: pointer; }
-  button.on { border-color: var(--cyan); color: var(--cyan); }
+  #labels div { position: absolute; left: 0; top: 0; will-change: transform; white-space: nowrap;
+                font-size: 12.5px; font-weight: 500; color: rgba(226, 237, 248, 0.92); padding: 1px 7px; border-radius: 4px;
+                background: rgba(7, 11, 18, 0.62); border: 1px solid rgba(255, 255, 255, 0.1);
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9); }
+  #labels div.city { font-size: 14px; font-weight: 600; color: #fff; background: rgba(14, 25, 42, 0.85);
+                     border-color: rgba(56, 189, 248, 0.35); }
+  #labels div.off { visibility: hidden; }
+  .panel { position: absolute; z-index: 10; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+           padding: 14px 16px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45); }
+  #ctl { top: 14px; left: 14px; width: 350px; max-width: calc(100vw - 28px); max-height: calc(100vh - 160px); overflow-y: auto;
+         scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
+  h1 { font-size: 16.5px; font-weight: 600; margin: 0 0 3px; color: var(--title); line-height: 1.3; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.45; margin-bottom: 4px; }
+  label.f { display: block; font-size: 11.5px; font-weight: 600; letter-spacing: 0.3px; color: var(--muted); margin: 10px 0 4px; }
+  select, button { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line);
+                   border-radius: 7px; padding: 5px 9px; }
+  select { width: 100%; font-size: 13px; padding: 7px 10px; outline: none; cursor: pointer; }
+  select:focus { border-color: var(--accent); }
+  option { background: #0b121e; color: var(--fg); }
+  button { cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+  button:hover { background: rgba(255,255,255,0.08); border-color: var(--accent); }
+  button.on { background: rgba(56, 189, 248, 0.18); color: #fff; border-color: rgba(56, 189, 248, 0.55); font-weight: 600; }
   .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .head button { width: 28px; height: 28px; padding: 0; font-weight: 600; }
   .stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; margin: 10px 0 6px; }
-  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
-  .stat b { display: block; font-size: 18px; color: var(--fg); }
-  .stat span { font-size: 11.5px; color: var(--muted); }
-  .note { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 8px; }
-  .warn { font-size: 12px; line-height: 1.5; border: 1px solid rgba(255, 180, 61, 0.4); color: #ffd58f;
-          border-radius: 8px; padding: 6px 8px; margin-top: 8px; }
-  .legend { font-size: 12.5px; line-height: 1.8; margin-top: 8px; }
-  .sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px;
-        box-shadow: 0 0 6px currentColor; }
-  #time { left: 12px; right: 12px; bottom: 22px; margin: 0 auto; max-width: 860px; }
-  #clock { font-weight: 600; min-width: 150px; color: var(--cyan); }
-  #slider { flex: 1; accent-color: var(--cyan); min-width: 120px; }
-  #chart { width: 100%; height: 90px; display: block; margin-top: 6px; }
-  .tags label { font-size: 12.5px; margin-right: 10px; cursor: pointer; white-space: nowrap; }
-  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cyan); font-size: 15px; }
-  .deck-tooltip { font-family: 'IBM Plex Sans Thai', system-ui, sans-serif !important; font-size: 13px !important;
-                  background: rgba(8, 12, 22, 0.95) !important; border: 1px solid var(--line); border-radius: 8px;
-                  max-width: 280px; color: var(--fg) !important; }
-  #credit { position: absolute; right: 8px; bottom: 2px; font-size: 10.5px; color: var(--muted); z-index: 1; }
-  #credit a { color: var(--muted); }
-  #live { border: 1px solid rgba(80, 160, 255, 0.45); border-radius: 8px; padding: 7px 9px; margin-top: 8px;
-          background: rgba(30, 70, 140, 0.18); }
-  #live .big { font-size: 15px; font-weight: 600; }
-  #live .small { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 3px; }
-  .tabs { display: flex; gap: 6px; margin: 8px 0 2px; }
-  .tabs button { flex: 1; }
-  #ctl:not(.live) #live { display: none; }
-  #ctl.live #simPane { display: none; }
-  .helpbox { font-size: 12.5px; line-height: 1.6; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
-  .helpbox ol { margin: 4px 0 6px; padding-left: 18px; }
-  .helpbox[hidden] { display: none; }
-  .now { font-size: 13px; color: var(--cyan); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
-  .status { display: flex; gap: 10px; align-items: center; }
-  #liveIcon { font-size: 30px; line-height: 1; }
-  .badge { display: inline-block; margin-top: 3px; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #1d3f7a; color: #cfe0ff; }
-  .barsx { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); }
-  .impact { font-size: 13px; line-height: 1.55; margin-top: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,0.05); }
-  .impact.flood { background: rgba(47,123,255,0.18); border: 1px solid rgba(47,123,255,0.5); }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  .stat b { display: block; font-size: 19px; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .stat span { font-size: 11px; color: var(--muted); line-height: 1.35; }
+  .note { font-size: 11.5px; color: var(--muted); line-height: 1.55; margin-top: 6px; }
+  .warn { font-size: 12px; line-height: 1.5; border: 1px solid rgba(251, 191, 36, 0.35); background: rgba(251, 191, 36, 0.08);
+          color: #fde68a; border-radius: 8px; padding: 8px 10px; margin-top: 10px; }
+  .impact { font-size: 12.5px; line-height: 1.55; margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); }
+  .impact.flood { background: rgba(30, 64, 120, 0.25); border: 1px solid rgba(56, 140, 248, 0.45); color: #bae6fd; }
   .impact[hidden], .badge[hidden] { display: none; }
-  details { margin-top: 8px; font-size: 12px; color: var(--muted); }
-  details summary { cursor: pointer; }
-  .lgtitle { color: var(--muted); font-size: 12px; }
+  #chart { width: 100%; height: 92px; display: block; margin-top: 8px; background: rgba(8, 14, 24, 0.5); border-radius: 6px; }
+  #chartX { position: relative; height: 15px; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  #chartX span { position: absolute; top: 0; white-space: nowrap; }
+  details { margin-top: 10px; font-size: 12px; color: var(--muted); border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px; }
+  details summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+  .legend { font-size: 12px; line-height: 1.8; margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .lgtitle { color: var(--muted); font-size: 11.5px; font-weight: 600; }
   .ramp { display: flex; align-items: center; gap: 3px; }
   .ramp i { width: 22px; height: 6px; border-radius: 2px; }
-  .ramp span { font-size: 12.5px; margin: 0 4px; }
+  .ramp span { font-size: 12px; margin: 0 4px; color: var(--muted); }
+  .sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 8px 0 6px; vertical-align: middle; }
-  .dot.ring { background: transparent; border: 2px solid #fff; }
+  .dot.ring { background: transparent; border: 2px solid #fff; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
+  .small { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+  .tabs { display: flex; gap: 4px; background: rgba(7, 12, 22, 0.65); padding: 3px; border-radius: 8px; margin: 10px 0 6px;
+          border: 1px solid rgba(255,255,255,0.06); }
+  .tabs button { flex: 1; border: none; background: transparent; color: var(--muted); font-size: 12.5px; padding: 6px 8px; }
+  .tabs button.on { background: rgba(56, 189, 248, 0.16); color: var(--accent); font-weight: 600; }
+  #ctl:not(.live) #live { display: none; }
+  #ctl.live #simPane { display: none; }
   #ctl:not(.live) .liveonly, #ctl.live .simonly { display: none; }
-  .legend { border-top: 1px solid var(--line); padding-top: 6px; }
+  #live { margin-top: 6px; }
+  #live .big { font-size: 14.5px; font-weight: 600; color: #fff; }
+  #live .small { margin-top: 3px; }
+  #live button { margin-top: 8px; font-size: 12.5px; }
+  .now { font-size: 12px; color: var(--accent); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  .status { display: flex; gap: 12px; align-items: center; }
+  #liveIcon { width: 46px; height: 46px; flex: none; display: grid; place-items: center; }
+  #liveIcon svg { width: 46px; height: 46px; overflow: visible; }
+  .wxi .st { fill: none; stroke: #e2edf8; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .wxi .ac { fill: none; stroke: #38bdf8; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .wxi .cl { fill: #0b121e; stroke: #e2edf8; stroke-width: 1.6; stroke-linejoin: round; }
+  .wxi .bolt { fill: #fde68a; stroke: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .wxi .spin { transform-origin: 24px 24px; animation: wxspin 24s linear infinite; }
+    .wxi .drop { stroke-dasharray: 3 4; animation: wxfall 0.9s linear infinite; }
+    .wxi .flash { animation: wxflash 3.2s steps(1) infinite; }
+  }
+  @keyframes wxspin { to { transform: rotate(360deg); } }
+  @keyframes wxfall { to { stroke-dashoffset: -7; } }
+  @keyframes wxflash { 0%, 86% { opacity: 1; } 88% { opacity: 0.2; } 92% { opacity: 1; } }
+  #wx { font-size: 12.5px; margin-top: 4px; color: var(--fg); }
+  #wx .small { margin-top: 1px; }
+  .badge { display: inline-block; margin-top: 3px; font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 12px;
+           background: rgba(56, 189, 248, 0.2); color: #bae6fd; border: 1px solid rgba(56, 189, 248, 0.4); }
+  .barsx { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
   #liveRec { margin-top: 6px; font-size: 12px; line-height: 1.55; }
-  #liveRec b { color: #9cc3ff; }
-  #live button { margin-top: 6px; font-size: 12.5px; }
-  #liveBars { display: flex; gap: 1px; align-items: flex-end; height: 26px; margin-top: 5px; }
-  #liveBars i { flex: 1; background: #4d8dff; min-height: 1px; }
-  #liveBars i.z { background: rgba(127, 147, 171, 0.25); }
-  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  #liveRec b { color: #bae6fd; }
+  #liveBars { display: flex; gap: 2px; align-items: flex-end; height: 28px; margin-top: 6px; background: rgba(0,0,0,0.25); padding: 3px; border-radius: 4px; }
+  #liveBars i { flex: 1; background: #38bdf8; min-height: 2px; border-radius: 1px; }
+  #liveBars i.z { background: rgba(128, 150, 176, 0.2); }
+  .helpbox { font-size: 12.5px; line-height: 1.6; border: 1px solid rgba(56, 189, 248, 0.3); background: rgba(14, 28, 48, 0.85);
+             border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .helpbox ol { margin: 4px 0 6px; padding-left: 18px; }
+  .helpbox[hidden] { display: none; }
   #ctl.min > :not(.head) { display: none !important; }
   #ctl.min .sub { display: none; }
-  #chartX { position: relative; height: 14px; font-size: 10.5px; color: var(--muted); }
-  #chartX span { position: absolute; top: 0; white-space: nowrap; }
+  #time { left: 14px; right: 14px; bottom: 22px; margin: 0 auto; max-width: 860px; padding: 10px 16px; }
+  #play { width: 36px; height: 36px; border-radius: 50%; border: none; padding: 0; color: #fff; font-size: 14px;
+          background: linear-gradient(135deg, #0284c7, #38bdf8); box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35); }
+  #clock { font-weight: 600; min-width: 150px; color: #fff; font-variant-numeric: tabular-nums; }
+  #slider { flex: 1; accent-color: var(--accent); min-width: 120px; }
   #range { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
-  #viewbox { top: 12px; right: 12px; padding: 7px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; width: 150px; }
-  #viewbox .seg { display: flex; }
-  #viewbox .seg button { flex: 1; border-radius: 0; }
-  #viewbox .seg button:first-child { border-radius: 6px 0 0 6px; }
-  #viewbox .seg button:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
-  #viewbox button { font-size: 12.5px; padding: 4px 6px; }
-  #layers { display: flex; flex-direction: column; gap: 3px; padding: 2px 2px 0; }
+  #viewbox { top: 14px; right: 14px; padding: 8px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; width: 160px; }
+  #viewbox .seg { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); background: rgba(7, 12, 22, 0.65); }
+  #viewbox .seg button { flex: 1; border: none; border-radius: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 5px 6px; }
+  #viewbox .seg button.on { background: rgba(56, 189, 248, 0.2); color: #fff; }
+  #viewbox > button { font-size: 12px; padding: 5px 6px; }
+  #viewbox .reset { display: flex; gap: 6px; }
+  .reset { display: flex; justify-content: center; }
+  #compass { width: 44px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center; }
+  #compass svg { width: 22px; height: 22px; flex: none; transition: transform 0.08s linear; }
+  @media (pointer: coarse) { #compass { width: 48px; height: 44px; } }
+  /* live tab: no time bar; what sat above it moves down */
+  #time[hidden] { display: none; }
+  body.live #askLoc, body.live #satNote { bottom: 30px; }
+  #layers { display: flex; flex-direction: column; gap: 3px; padding: 4px 2px 0; border-top: 1px solid rgba(255,255,255,0.06); }
+  #layers label { font-size: 12px; cursor: pointer; white-space: nowrap; }
+  #layers input { accent-color: var(--accent); }
   #layers[hidden] { display: none; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--accent); font-size: 15px; pointer-events: none; z-index: 20; }
+  #tip { position: absolute; pointer-events: none; z-index: 30; font-size: 12.5px; line-height: 1.5; background: rgba(11, 18, 30, 0.95);
+         border: 1px solid rgba(115, 175, 235, 0.25); border-radius: 8px; padding: 7px 10px; max-width: 290px; color: var(--fg);
+         box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+  #tip[hidden] { display: none; }
+  #credit { position: absolute; right: 10px; bottom: 3px; font-size: 10.5px; color: var(--muted); z-index: 5; max-width: calc(100vw - 20px);
+            background: rgba(7, 11, 18, 0.6); padding: 1px 6px; border-radius: 4px; text-align: right; }
+  #credit a { color: var(--muted); }
+  #credit .sat { display: none; }
+  body.sat #credit .sat { display: inline; }
+  #satNote { position: absolute; left: 50%; transform: translateX(-50%); bottom: 112px; z-index: 9; font-size: 12px; color: #fde68a;
+             background: rgba(7, 11, 18, 0.78); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 8px; padding: 3px 10px;
+             white-space: nowrap; display: none; }
+  body.sat #satNote { display: block; }
+  /* location */
+  #askLoc { right: 14px; bottom: 112px; width: 300px; padding: 12px 14px; }
+  #askLoc[hidden], #me[hidden] { display: none; }
+  #askLoc b { color: #fff; font-size: 14px; }
+  #askLoc .row { margin-top: 8px; }
+  #askLoc .row button { min-width: 64px; }
+  #askLoc .row button:first-child { background: rgba(56, 189, 248, 0.2); border-color: rgba(56, 189, 248, 0.55); color: #fff; }
+  #me { margin-top: 10px; border: 1px solid rgba(59, 130, 246, 0.5); background: rgba(30, 64, 120, 0.22); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
+  #me h3 { font-size: 12.5px; margin: 6px 0 2px; color: #bae6fd; }
+  #me h3:first-child { margin-top: 0; }
+  #me .bar { display: flex; height: 7px; border-radius: 3px; overflow: hidden; margin: 4px 0 2px; background: rgba(255,255,255,0.08); }
+  #me .bar i { display: block; height: 100%; }
+  #perf { display: none; }
   @media (max-width: 640px) {
-    #viewbox { top: auto; bottom: 130px; right: 16px; width: 132px; }
+    #viewbox { top: auto; bottom: 186px; right: 16px; width: 136px; }
     #ctl { max-height: 45vh; width: auto; left: 16px; right: 16px; max-width: none; }
-    #time { left: 16px; right: 16px; }
+    #time { left: 16px; right: 16px; bottom: 38px; padding: 8px 12px; }
     #clock { min-width: 0; }
     #slider { flex-basis: 100%; order: 3; }
+    #credit { font-size: 9.5px; left: 8px; }
+    #askLoc { left: 16px; right: 16px; width: auto; bottom: auto; top: 90px; }
+    #satNote { bottom: 176px; left: 16px; transform: none; white-space: normal; max-width: calc(100vw - 170px); }
+    body.live #viewbox { bottom: 46px; }
+    body.live #askLoc { bottom: auto; }
+    body.live #satNote { bottom: 46px; }
   }
 </style>
 </head>
 <body>
 <div id="map"></div>
-<div id="labels"></div>
+<div id="labels" aria-hidden="true"></div>
 <canvas id="rainfx" aria-hidden="true"></canvas>
-<div id="credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · FABDEM · ESA WorldCover · ERA5 · <a href="https://github.com/AriyaLuesawat/phuket-traffic-flood-sim" target="_blank" rel="noopener">ที่มาและวิธีการ</a></div>
+<div id="tip" hidden></div>
+<div id="credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · FABDEM · ESA WorldCover · ERA5 · <a href="https://maplibre.org" target="_blank" rel="noopener">MapLibre</a> · <a href="https://open-meteo.com/" target="_blank" rel="noopener">สภาพอากาศ: Open-Meteo</a> (CC BY 4.0) · <span class="sat" id="satCredit"></span> <a href="https://github.com/AriyaLuesawat/phuket-traffic-flood-sim" target="_blank" rel="noopener">ที่มาและวิธีการ</a></div>
+<div id="satNote"></div>
 <div id="loading">กำลังโหลดข้อมูล…</div>
+<pre id="perf"></pre>
 
 <div id="ctl" class="panel">
   <div class="head">
@@ -133,7 +208,8 @@
     <ol>
       <li><b>สถานการณ์ปัจจุบัน</b>: ดูว่าภูเก็ตฝนตกไหม ตกมากี่ชั่วโมงแล้ว และแผนที่จะแสดงการจราจรที่คาดว่าจะเกิดกับฝนระดับนั้น</li>
       <li><b>สถานการณ์จำลอง</b>: เลือกช่วงเวลาและระดับฝนเอง เพื่อเทียบว่ารถช้าลงแค่ไหน</li>
-      <li>กด ▶ ด้านล่างเพื่อดูการจราจรเปลี่ยนทีละ 5 นาที · ชี้ที่ถนนเพื่อดูความเร็ว · มุมขวาบนสลับ 2D/3D และเลือกชั้นข้อมูล</li>
+      <li>กด ▶ ด้านล่างเพื่อดูการจราจรเปลี่ยนทีละ 5 นาที · ชี้ที่ถนนเพื่อดูความเร็ว · มุมขวาบนสลับ 2D/3D แผนที่/ดาวเทียม และเลือกชั้นข้อมูล</li>
+      <li>📍 ตำแหน่งของฉัน: ดูฝนที่สถานีใกล้คุณและถนนรอบตัว (ตำแหน่งใช้ในเครื่องของคุณเท่านั้น ไม่ถูกส่งหรือบันทึกที่ไหน)</li>
     </ol>
     สีถนนเป็น<b>ผลจากแบบจำลอง</b> ไม่ใช่สภาพจราจรจริงตอนนี้ แบบจำลองไม่ปิดถนน ถนนที่มีน้ำขังจะแสดงว่า "ควรเลี่ยง"
   </div>
@@ -141,12 +217,14 @@
     <button id="tabLive" role="tab" aria-selected="false">สถานการณ์ปัจจุบัน</button>
     <button id="tabSim" role="tab" class="on" aria-selected="true">สถานการณ์จำลอง</button>
   </div>
+  <div id="me" hidden aria-live="polite"></div>
 
   <div id="live">
     <div class="now" id="nowClock"></div>
     <div aria-live="polite">
-    <div class="status"><span id="liveIcon" aria-hidden="true">⏳</span>
+    <div class="status"><span id="liveIcon" role="img" aria-label="กำลังโหลดสภาพอากาศ"></span>
       <div><div class="big" id="liveMain">กำลังโหลดข้อมูลฝน… (แผนที่แสดงวันไม่มีฝนไปก่อน)</div><span class="badge" id="liveLevel" hidden></span></div></div>
+    <div id="wx"></div>
     <div class="small" id="liveSub"></div>
     <div id="liveBars" aria-hidden="true"></div>
     <div class="barsx" aria-hidden="true"><span>24 ชม. ที่แล้ว</span><span>ตอนนี้</span></div>
@@ -180,6 +258,10 @@
       แผนที่และกราฟมาจากการจำลอง 1 รอบ ส่วนตัวเลขเฉลี่ยมาจาก 5 รอบที่สุ่มต่างกัน ·
       ความสูงอาคารส่วนใหญ่ (95%) เป็นค่าสมมติเพื่อการแสดงผล · ภูมิประเทศจาก FABDEM · ไม่มีการปิดถนนในแบบจำลอง
     </div>
+    <div class="note">
+      มุมมอง 3D: อาคารแสดงเมื่อซูมเข้าระดับตัวเมือง สีเข้มกว่า = มีความสูงจากแท็ก OSM, สีอ่อน = สมมติ 1 ชั้น (3 ม.) ·
+      สีพื้นดินจากชั้นการใช้ที่ดิน ESA WorldCover (30 ม.) · เงาภูเขาและความสูงพื้นจาก FABDEM ไม่ขยายแนวตั้ง
+    </div>
   </details>
   </div>
 
@@ -197,6 +279,13 @@
 <div id="viewbox" class="panel" role="group" aria-label="มุมมองและชั้นข้อมูล">
   <div class="seg"><button id="v2d">2D</button><button id="v3d" class="on">3D</button></div>
   <div class="seg"><button id="vTown">ตัวเมือง</button><button id="vIsland">ทั้งเกาะ</button></div>
+  <div class="reset">
+    <button id="compass" title="กด 1 ครั้ง: หันทิศเหนือ · กดอีกครั้ง: กลับมุมมองเริ่มต้น" aria-label="หันทิศเหนือ กดอีกครั้งเพื่อกลับมุมมองเริ่มต้น">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L16 12 L12 10.5 L8 12 Z" fill="#f87171"/>
+        <path d="M12 22 L8 12 L12 13.5 L16 12 Z" fill="#cbd5e1"/></svg></button>
+  </div>
+  <div class="seg" role="group" aria-label="ภาพพื้นหลัง"><button id="bMap" class="on">แผนที่</button><button id="bSat">ดาวเทียม</button></div>
+  <button id="locBtn" title="ตำแหน่งของฉัน">📍 ตำแหน่งของฉัน</button>
   <button id="layersBtn" aria-expanded="false" aria-controls="layers" title="เลือกชั้นข้อมูล">ชั้นข้อมูล ▾</button>
   <div id="layers" class="tags" hidden>
     <label><input type="checkbox" id="lRoads" checked> ถนน</label>
@@ -208,6 +297,13 @@
     <label><input type="checkbox" id="lRain" checked> สถานีวัดฝน</label>
     <label><input type="checkbox" id="lNews" checked> จุดข่าวน้ำท่วม</label>
   </div>
+</div>
+
+<div id="askLoc" class="panel" hidden role="dialog" aria-labelledby="askLocQ">
+  <b id="askLocQ">ตอนนี้คุณอยู่ในภูเก็ตไหม?</b>
+  <div class="row"><button id="locYes">อยู่</button><button id="locNo">ไม่อยู่</button></div>
+  <div class="small" style="margin-top:6px">ตำแหน่งใช้ในเครื่องของคุณเท่านั้น ไม่ถูกส่งหรือบันทึกที่ไหน</div>
+  <div class="small" id="locMsg" style="margin-top:4px;color:#fde68a"></div>
 </div>
 
 <div id="time" class="panel">
@@ -223,8 +319,10 @@
 </div>
 
 <script>
-const D = 'data/';
-const EXAG = 1.0;           // vertical scale of terrain and buildings
+// Viewer (step 9, redesigned 19 Nov 2569): MapLibre GL base map built only from the project's own data (no tile server, no API key), real 3D
+// terrain + hillshade from FABDEM, fill-extrusion buildings from vector tiles, and one small WebGL2 layer that
+// moves the vehicle dots and the 3D rain drops on the GPU. Data: web/app/data-c (scripts/pack_web_data.py).
+const D = 'data-c/';
 const MAX_DOTS_EDGE = 12;   // dots drawn per edge at most
 const MAX_DOTS = 40000;
 const ANIM_SIM_S = 30;      // simulated seconds per real second for the moving dots
@@ -232,79 +330,519 @@ const TOWN = { longitude: 98.388, latitude: 7.884, zoom: 13.4 };
 const SMALL = matchMedia('(max-width: 640px), (pointer: coarse)').matches;  // phones and tablets
 const LIMIT = { minZoom: 9.6, maxZoom: 17.5, lon: [98.18, 98.55], lat: [7.70, 8.25] };  // keep Phuket on screen
 const ISLAND = { longitude: 98.34, latitude: 7.95, zoom: 10.4 };
-const ADD = { depthTest: false, blend: true, blendFunc: [770, 1], blendEquation: 32774 };  // additive glow
+const P3D = { pitch: 55, bearing: -20 };
+const Q = new URLSearchParams(location.search);  // ?p=period&s=scenario&f=frame&v=2d|island
+const PERF = Q.has('perf');
+const T0 = performance.now();
+
+// localStorage only for this viewer's own choices; it can be missing or throw (private mode, blocked storage)
+const store = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* not remembered */ } } };
+const LOCALHOST = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+// satellite base: EOX Sentinel-2 cloudless 2024 (no key; CC BY-NC-SA 4.0), or a provider from the gitignored
+// config.local.js (window.SAT_PROVIDER = { url, attribution, maxzoom, year }) for a keyed high-resolution layer
+const SAT = window.SAT_PROVIDER && window.SAT_PROVIDER.url ? { maxzoom: 19, year: null, ...window.SAT_PROVIDER } : {
+  url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg', maxzoom: 15, year: 2024,
+  attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless 2024 – s2maps.eu</a> by EOX IT Services GmbH ' +
+    '(Contains modified Copernicus Sentinel data 2024) · <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>' };
+const BASE0 = ['map', 'sat'].includes(Q.get('base')) ? Q.get('base') : store.get('c.base') === 'sat' ? 'sat' : 'map';
+const FORCE_Q = Q.has('q') ? +Q.get('q') : null;  // debug: force a quality level 0-2
 
 const S = { meta: null, roads: null, run: null, water: null, frame: 0, playing: false, frameMs: 1000,
-            view: { ...TOWN, pitch: SMALL ? 0 : 55, bearing: SMALL ? 0 : -20, minZoom: LIMIT.minZoom, maxZoom: LIMIT.maxZoom }, pitch: SMALL ? 0 : 55, dots: null, last: 0, simT: 0 };
+            pitch: (SMALL || Q.get('v') === '2d') ? 0 : P3D.pitch, dots: null, last: 0, simT: 0,
+            sState: null, wState: null, hover: null, base: BASE0, drag: false, q: FORCE_Q || 0 };
 const $ = id => document.getElementById(id);
 
-function speedColor(v, a = 255) {
-  if (!v) return [120, 135, 160, a];  // no vehicle in these 5 minutes: no speed to show
-  if (v >= 60) return [46, 204, 113, a];
-  if (v >= 40) return [163, 217, 53, a];
-  if (v >= 20) return [255, 210, 63, a];
-  if (v >= 10) return [255, 140, 61, a];
-  return [255, 59, 59, a];
-}
+// the two looks. "map": dark ground and light buildings (prototype D); "sat": imagery draped on the terrain
+const LOOK = {
+  map: { sea: '#070b12', land: '#0c1523', coast: 'rgba(90, 140, 195, 0.75)', minor: 'rgba(98, 118, 145, 0.62)',
+         casing: 'rgba(0, 0, 0, 0.55)', hover: '#ffffff', bld: ['#e8e2d6', '#c3ccd8'],
+         drop: [0.75, 0.85, 1.0],
+         sky: { 'sky-color': '#060b14', 'horizon-color': '#15263b', 'fog-color': '#0a1220', 'sky-horizon-blend': 0.5,
+                'horizon-fog-blend': 0.6, 'fog-ground-blend': 0.8, 'atmosphere-blend': 0 }, light: 0.22 },
+  sat: { sea: '#0a1a26', land: '#0c1523', coast: 'rgba(0, 0, 0, 0)', minor: 'rgba(235, 240, 245, 0.42)',
+         casing: 'rgba(0, 0, 0, 0.75)', hover: '#ffffff', bld: ['#ebe5d8', '#d4d8de'],
+         drop: [0.82, 0.9, 1.0],
+         sky: { 'sky-color': '#5f86b3', 'horizon-color': '#c4d3e2', 'fog-color': '#aebfcf', 'sky-horizon-blend': 0.5,
+                'horizon-fog-blend': 0.6, 'fog-ground-blend': 0.85, 'atmosphere-blend': 0 }, light: 0.3 },
+};
+const look = () => LOOK[S.base];
 
-async function load() {
-  const [meta, rj, rb, wj, wb, ter, base] = await Promise.all([
-    fetch(D + 'meta.json').then(r => r.json()), fetch(D + 'roads.json').then(r => r.json()),
-    fetch(D + 'roads.bin').then(r => r.arrayBuffer()), fetch(D + 'water.json').then(r => r.json()),
-    fetch(D + 'water.bin').then(r => r.arrayBuffer()), fetch(D + 'terrain.json').then(r => r.json()),
-    fetch(D + 'basemap.json').then(r => r.json())]);
-  S.meta = meta;
-  S.base = base;
-  $('labels').innerHTML = base.places.map(p => `<div class="${p.kind}">${p.kind === 'city' ? 'ตัวเมืองภูเก็ต' : p.name}</div>`).join('');
-  // roads
-  const [n, nv] = new Uint32Array(rb, 0, 2);
-  const off = new Uint32Array(rb, 8, n + 1);
-  const v = new Float32Array(rb, 8 + 4 * (n + 1), nv * 3);
-  for (let i = 2; i < v.length; i += 3) v[i] = v[i] * EXAG + 2;
+if (Q.has('debug')) window.onerror = (m, src, l, c, e) => { const p = $('perf'); p.style.display = 'block';
+  p.textContent += `ERR ${m} @${l}:${c}\n`; };
+
+// ---- speed classes (same thresholds and colours as web/app) ----
+const SPEED_HEX = ['#7887a0', '#2ecc71', '#a3d935', '#ffd23f', '#ff8c3d', '#ff3b3b'];  // 0 = no vehicle in 5 min
+const SPEED_RGB = [[120, 135, 160], [46, 204, 113], [163, 217, 53], [255, 210, 63], [255, 140, 61], [255, 59, 59]];
+const speedClass = v => !v ? 0 : v >= 60 ? 1 : v >= 40 ? 2 : v >= 20 ? 3 : v >= 10 ? 4 : 5;
+
+// ---- data: gzip files decoded in the browser (works on any static server) ----
+async function bytes(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+  const buf = await r.arrayBuffer(), u = new Uint8Array(buf, 0, 2);
+  if (u[0] !== 0x1f || u[1] !== 0x8b) return buf;  // the server already removed the gzip layer
+  return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+}
+const json = async url => JSON.parse(new TextDecoder().decode(await bytes(url)));
+const merc = (lon, lat) => [(lon + 180) / 360, 0.5 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / (2 * Math.PI)];
+
+function decodeRoads(buf, c) {
+  const h = new Uint32Array(buf, 0, 3), n = h[1], nv = h[2];
+  let o = 12;
+  const len = new Uint32Array(buf, o, n); o += 4 * n;
+  const name = new Uint16Array(buf, o, n); o += 2 * n;
+  const cnt = new Uint16Array(buf, o, n); o += 2 * n;
+  const kind = new Uint8Array(buf, o, n); o += n;
+  o += n;  // lanes (not shown)
+  const b = new Uint8Array(buf, o);
+  const lon = new Float64Array(nv), lat = new Float64Array(nv), z = new Float32Array(nv);
+  let p = 0;
+  const acc = [0, 0, 0];
+  for (let i = 0; i < nv; i++) {
+    for (let d = 0; d < 3; d++) {
+      let v = 0, s = 1, x;
+      do { x = b[p++]; v += (x & 127) * s; s *= 128; } while (x & 128);
+      acc[d] += v % 2 ? -(v + 1) / 2 : v / 2;
+    }
+    lon[i] = c.origin[0] + acc[0] * 1e-6; lat[i] = c.origin[1] + acc[1] * 1e-6; z[i] = acc[2] / 10;
+  }
+  const off = new Uint32Array(n + 1);
+  for (let e = 0; e < n; e++) off[e + 1] = off[e] + cnt[e];
   const cum = new Float32Array(nv);  // distance along the edge at each vertex (m)
-  const edges = [];
   for (let e = 0; e < n; e++) {
-    const a = off[e], b = off[e + 1];
+    const a = off[e], bb = off[e + 1];
     cum[a] = 0;
-    for (let k = a + 1; k < b; k++) {
-      const dx = (v[3 * k] - v[3 * k - 3]) * 111320 * Math.cos(v[3 * k + 1] * Math.PI / 180);
-      const dy = (v[3 * k + 1] - v[3 * k - 2]) * 110540;
+    for (let k = a + 1; k < bb; k++) {
+      const dx = (lon[k] - lon[k - 1]) * 111320 * Math.cos(lat[k] * Math.PI / 180), dy = (lat[k] - lat[k - 1]) * 110540;
       cum[k] = cum[k - 1] + Math.hypot(dx, dy);
     }
-    edges.push({ i: e, path: v.subarray(3 * a, 3 * b), kind: rj.kind[e] });
   }
-  S.roads = { n, off, v, cum, edges, meta: rj };
-  // water cells (step 6 flood run), squares of cell_m
-  const wn = new Uint32Array(wb, 0, 1)[0];
-  const wc = new Float32Array(wb, 4, wn * 3);
-  const wd = new Uint16Array(wb, 4 + 12 * wn, 3 * wn);
-  const h = wj.cell_m / 2, cells = [];
-  for (let i = 0; i < wn; i++) {
-    const lo = wc[3 * i], la = wc[3 * i + 1], z = wc[3 * i + 2] * EXAG + 1;
-    const dl = h / (111320 * Math.cos(la * Math.PI / 180)), dt = h / 110540;
-    cells.push({ i, poly: [[lo - dl, la - dt, z], [lo + dl, la - dt, z], [lo + dl, la + dt, z], [lo - dl, la + dt, z]] });
+  const main = [];
+  for (let e = 0; e < n; e++) if (kind[e] <= 4) main.push(e);
+  return { n, nv, off, lon, lat, z, cum, kind, len, name, main, names: c.names, kinds: c.kinds };
+}
+
+function roadsGeoJSON(R) {
+  const f = new Array(R.n);
+  for (let e = 0; e < R.n; e++) {
+    const co = [];
+    for (let k = R.off[e]; k < R.off[e + 1]; k++) co.push([R.lon[k], R.lat[k]]);
+    f[e] = { type: 'Feature', id: e + 1, properties: { k: R.kind[e] }, geometry: { type: 'LineString', coordinates: co } };
   }
-  S.water = { n: wn, depth: wd, cells, meta: wj };
-  S.terrain = ter.map(l => l.map(p => [p[0], p[1], p[2] * EXAG]));
+  return { type: 'FeatureCollection', features: f };
+}
+
+// ---- map style: own data only ----
+const absBase = new URL(D, location.href).href;
+maplibregl.addProtocol('gzt', async (params, ctl) => {  // gzip vector tiles from a plain static server
+  const url = location.protocol + '//' + params.url.slice(6);
+  const r = await fetch(url, { signal: ctl.signal });
+  if (r.status === 404) return { data: new ArrayBuffer(0) };
+  const buf = await r.arrayBuffer(), u = new Uint8Array(buf, 0, 2);
+  if (u[0] !== 0x1f || u[1] !== 0x8b) return { data: buf };
+  return { data: await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer() };
+});
+
+const widthBy = (k0, k3, k4, k5) => ['interpolate', ['exponential', 1.6], ['zoom'],
+  10, ['match', ['get', 'k'], [0, 1, 2], k0 * 0.7, 3, k3 * 0.7, 4, k4 * 0.6, k5 * 0.5],
+  13.5, ['match', ['get', 'k'], [0, 1, 2], k0, 3, k3, 4, k4, k5],
+  17.5, ['match', ['get', 'k'], [0, 1, 2], k0 * 3.2, 3, k3 * 3.2, 4, k4 * 3.2, k5 * 4.5]];
+const speedColor = () => ['case', ['boolean', ['feature-state', 'h'], false], look().hover,
+  ['match', ['coalesce', ['feature-state', 's'], 0], 1, SPEED_HEX[1], 2, SPEED_HEX[2], 3, SPEED_HEX[3], 4, SPEED_HEX[4], 5, SPEED_HEX[5], SPEED_HEX[0]]];
+
+const style = {
+  version: 8,
+  sources: { land: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } } },
+  layers: [
+    { id: 'sea', type: 'background', paint: { 'background-color': LOOK[BASE0].sea } },
+    { id: 'land', type: 'fill', source: 'land', paint: { 'fill-color': LOOK[BASE0].land, 'fill-antialias': true } },
+    { id: 'coast', type: 'line', source: 'land', paint: { 'line-color': LOOK[BASE0].coast, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 16, 2] } },
+  ],
+};
+
+const map = new maplibregl.Map({
+  container: 'map', style, attributionControl: false, fadeDuration: 0,
+  center: [(Q.get('v') === 'island' ? ISLAND : TOWN).longitude, (Q.get('v') === 'island' ? ISLAND : TOWN).latitude],
+  zoom: (Q.get('v') === 'island' ? ISLAND : TOWN).zoom, pitch: S.pitch, bearing: S.pitch ? P3D.bearing : 0,
+  minZoom: LIMIT.minZoom, maxZoom: LIMIT.maxZoom, maxPitch: 70,
+  pixelRatio: Math.min(devicePixelRatio || 1, 2), antialias: !SMALL, maxTileCacheSize: 120,
+  transformCameraUpdate: ({ center }) => {  // the camera cannot leave the island area
+    const c = (v, [a, b]) => Math.min(b, Math.max(a, v));
+    return { center: new maplibregl.LngLat(c(center.lng, LIMIT.lon), c(center.lat, LIMIT.lat)) };
+  },
+});
+map.touchZoomRotate.enableRotation();
+const mapReady = new Promise(r => map.once('load', r));
+map.on('error', e => console.warn('map error', String(e.error && e.error.message).replace(/[?][^ ]*/g, '')));  // no query strings (keys)
+
+function addRoadLayers() {
+  map.addSource('roads', { type: 'geojson', data: roadsGeoJSON(S.roads), maxzoom: 15, tolerance: 0.4, buffer: 64 });
+  const flood = (id, w, color, width) => ({ id, type: 'line', source: 'roads', layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': color, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, width * 0.6, 13.5, width, 17.5, width * 2.4],
+             'line-opacity': ['case', ['==', ['coalesce', ['feature-state', 'w'], 0], w], 1, 0] } });
+  map.addLayer(flood('roadwater-wet', 1, '#7fb2ff', 4));
+  map.addLayer(flood('roadwater-avoid', 2, '#2f7bff', 7));
+  map.addLayer({ id: 'roads-minor', type: 'line', source: 'roads', filter: ['==', ['get', 'k'], 5],
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': ['case', ['boolean', ['feature-state', 'h'], false], look().hover, look().minor], 'line-width': widthBy(3, 2.2, 1.6, 0.8) } });
+  map.addLayer({ id: 'roads-casing', type: 'line', source: 'roads', filter: ['<=', ['get', 'k'], 4],
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': look().casing, 'line-width': widthBy(4.8, 3.8, 3.1, 1), 'line-blur': 0.4 } });
+  map.addLayer({ id: 'roads-main', type: 'line', source: 'roads', filter: ['<=', ['get', 'k'], 4],
+    layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': speedColor(), 'line-width': widthBy(3, 2.2, 1.6, 0.8) } });
+  map.addSource('news', { type: 'geojson', data: { type: 'FeatureCollection', features: S.meta.news.map(d => (
+    { type: 'Feature', properties: d, geometry: { type: 'Point', coordinates: [d.lon, d.lat] } })) } });
+  map.addLayer({ id: 'news', type: 'circle', source: 'news', paint: { 'circle-radius': 8, 'circle-color': 'rgba(255,255,255,0.12)',
+    'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.2, 'circle-pitch-alignment': 'viewport' } });
+  map.addSource('rain', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'rain', type: 'circle', source: 'rain', paint: {
+    'circle-radius': ['+', 5, ['min', 14, ['*', 1.6, ['coalesce', ['get', 'r1'], 0]]]],
+    'circle-color': ['case', ['==', ['typeof', ['get', 'r1']], 'number'], ['case', ['>=', ['get', 'r1'], 0.1], 'rgba(56,189,248,0.85)', 'rgba(120,145,175,0.3)'], 'rgba(0,0,0,0)'],
+    'circle-stroke-color': '#e1f0ff', 'circle-stroke-width': 1.2 } });
+  map.addLayer(fxLayer);
+  // your position (only in this browser): accuracy circle and dot
+  map.addSource('me', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'me-acc', type: 'fill', source: 'me', filter: ['==', ['geometry-type'], 'Polygon'],
+    paint: { 'fill-color': 'rgba(59, 130, 246, 0.16)', 'fill-outline-color': 'rgba(96, 165, 250, 0.8)' } });
+  map.addLayer({ id: 'me-dot', type: 'circle', source: 'me', filter: ['==', ['geometry-type'], 'Point'],
+    paint: { 'circle-radius': 7, 'circle-color': '#3b82f6', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5,
+             'circle-pitch-alignment': 'viewport' } });
+  // place names: HTML, so the browser shapes the Thai vowels and tone marks (MapLibre's text layer drops or misplaces them)
+  $('labels').innerHTML = S.land.places.map(p => `<div class="${p.kind}">${p.kind === 'city' ? 'ตัวเมืองภูเก็ต' : p.name}</div>`).join('');
+  placeLabels();
+}
+
+// ---- base look: map (dark) or satellite; the speed colours never change ----
+function ensureSat() {
+  if (map.getSource('sat')) return;
+  map.addSource('sat', { type: 'raster', tiles: [SAT.url], tileSize: 256, maxzoom: SAT.maxzoom, bounds: [98.0, 7.25, 98.7, 8.4] });
+  map.addLayer({ id: 'sat', type: 'raster', source: 'sat', paint: { 'raster-fade-duration': 0, 'raster-brightness-max': 0.86,
+    'raster-saturation': -0.08, 'raster-contrast': 0.05 } }, 'coast');
+}
+function applyBase(mode) {
+  S.base = mode;
+  const L0 = look(), sat = mode === 'sat', P = (id, k, v) => map.getLayer(id) && map.setPaintProperty(id, k, v);
+  document.body.classList.toggle('sat', sat);
+  $('bMap').classList.toggle('on', !sat); $('bSat').classList.toggle('on', sat);
+  $('satCredit').innerHTML = SAT.attribution + ' ·';
+  $('satNote').textContent = SAT.year ? `ภาพดาวเทียมเป็นภาพพื้นหลังปี ${SAT.year + 543} (ค.ศ. ${SAT.year}) ไม่ใช่ภาพวันที่ 29 ต.ค. 2569`
+                                      : 'ภาพดาวเทียมเป็นภาพพื้นหลัง ไม่ใช่ภาพวันที่ 29 ต.ค. 2569';
+  if (sat) ensureSat();
+  P('sea', 'background-color', L0.sea); P('land', 'fill-color', L0.land); P('coast', 'line-color', L0.coast);
+  P('roads-minor', 'line-color', ['case', ['boolean', ['feature-state', 'h'], false], L0.hover, L0.minor]);
+  P('roads-casing', 'line-color', L0.casing); P('roads-main', 'line-color', speedColor());
+  P('buildings', 'fill-extrusion-color', ['case', ['==', ['get', 't'], 1], L0.bld[0], L0.bld[1]]);
+  applySky();
+  render();
+}
+function applySky() {
+  const L0 = look();
+  map.setSky(S.q >= 1 ? { ...L0.sky, 'fog-ground-blend': 1, 'horizon-fog-blend': 0, 'sky-horizon-blend': 0 } : L0.sky);
+  map.setLight({ anchor: 'viewport', color: '#ffffff', intensity: L0.light, position: [1.4, 210, 38] });
+}
+
+// ---- lazy 3D layers: nothing below is fetched until 3D (or the layer) is switched on ----
+let lazy3d = { ter: false, bld: false };
+function ensureTerrain() {
+  if (lazy3d.ter) return;
+  lazy3d.ter = true;
+  const C = S.c, dem = { type: 'raster-dem', tiles: [absBase + 'dem/{z}/{x}/{y}.png'], tileSize: 256, encoding: 'terrarium',
+                         minzoom: C.dem.minzoom, maxzoom: C.dem.maxzoom, bounds: C.dem.bounds };
+  map.addSource('dem', dem);  // one source for terrain and hillshade: each tile is downloaded once
+  // dark relief: faint blue-grey light on the slopes facing the light, black in the shadows
+  map.addLayer({ id: 'hillshade', type: 'hillshade', source: 'dem', paint: { 'hillshade-exaggeration': 0.55,
+    'hillshade-shadow-color': '#000000', 'hillshade-highlight-color': 'rgba(120, 165, 215, 0.32)', 'hillshade-accent-color': '#03060b',
+    'hillshade-illumination-direction': 315 } }, 'coast');
+  // faint grid: the 210 m ground lines of terrain.json (land only), draped on the terrain
+  map.addSource('grid', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, maxzoom: 13 });
+  json(D + 'grid.json.gz').then(d => map.getSource('grid').setData(d));
+  map.addLayer({ id: 'grid', type: 'line', source: 'grid', paint: { 'line-color': 'rgba(70, 130, 190, 0.3)',
+    'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.3, 14, 0.8, 17, 1.2] } }, 'coast');
+}
+function ensureBuildings() {
+  if (lazy3d.bld) return;
+  lazy3d.bld = true;
+  const C = S.c;
+  map.addSource('bld', { type: 'vector', tiles: ['gzt://' + absBase.replace(/^https?:\/\//, '') + 'bld/{z}/{x}/{y}.pbf.gz'],
+                         minzoom: C.buildings.minzoom, maxzoom: C.buildings.maxzoom, bounds: [98.25, 7.75, 98.48, 8.2] });
+  map.addLayer({ id: 'buildings', type: 'fill-extrusion', source: 'bld', 'source-layer': 'b', minzoom: 12,
+    paint: { 'fill-extrusion-color': ['case', ['==', ['get', 't'], 1], look().bld[0], look().bld[1]],
+             'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-base': 0, 'fill-extrusion-vertical-gradient': true,
+             'fill-extrusion-opacity': 0.95 } }, 'news');
+}
+
+// ---- water cells of the flood model (heavy_flood only): 4 canvas strips draped on the map/terrain ----
+async function ensureWater() {
+  if (S.water) return S.water;
+  if (S.waterLoading) return S.waterLoading;
+  S.waterLoading = bytes(D + 'water.bin.gz').then(buf => {
+    const W = S.c.water, n = new Uint32Array(buf, 0, 1)[0];
+    const col = new Uint16Array(buf, 4, n), row = new Uint16Array(buf, 4 + 2 * n, n), depth = new Uint16Array(buf, 4 + 4 * n, 3 * n);
+    const strips = W.strips.map((st, i) => {
+      const cv = document.createElement('canvas'); cv.width = W.cols; cv.height = st.rows;
+      const g = cv.getContext('2d'), img = g.createImageData(W.cols, st.rows);
+      map.addSource('water' + i, { type: 'canvas', canvas: cv, coordinates: st.coords, animate: false });
+      map.addLayer({ id: 'water' + i, type: 'raster', source: 'water' + i,
+        paint: { 'raster-resampling': 'nearest', 'raster-fade-duration': 0, 'raster-opacity': 1 } }, 'roadwater-wet');
+      return { cv, g, img, row0: st.row0, rows: st.rows };
+    });
+    const where = new Int32Array(n), which = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      const s = strips.findIndex(st => row[i] >= st.row0 && row[i] < st.row0 + st.rows);
+      which[i] = s; where[i] = 4 * ((row[i] - strips[s].row0) * W.cols + col[i]);
+    }
+    S.water = { n, depth, strips, where, which, key: '' };
+    return S.water;
+  });
+  return S.waterLoading;
+}
+
+function waterDepthCm(i) {  // model flood depth of cell i at the current frame (hours 07:00, 08:00, 09:00)
+  const t = (S.frame * S.meta.frame_s - 1800) / 3600 + 1;   // 0 = 07:00 of the flood event
+  const a = Math.max(0, Math.min(1, Math.floor(t))), f = Math.max(0, Math.min(1, t - a));
+  const d = S.water.depth, n = S.water.n;
+  return (1 - f) * d[a * n + i] + f * d[Math.min(2, a + 1) * n + i];
+}
+
+function drawWater() {
+  const Wt = S.water, key = `${S.frame}`;
+  if (Wt.key === key) return;
+  Wt.key = key;
+  for (let i = 0; i < Wt.n; i++) {
+    const d = waterDepthCm(i), px = Wt.strips[Wt.which[i]].img.data, o = Wt.where[i];
+    if (d < 10) { px[o + 3] = 0; continue; }
+    if (d < 30) { px[o] = 60; px[o + 1] = 120; px[o + 2] = 255; px[o + 3] = 105; }
+    else { px[o] = 61; px[o + 1] = 123; px[o + 2] = 255; px[o + 3] = 170; }
+  }
+  Wt.strips.forEach((st, i) => {
+    st.g.putImageData(st.img, 0, 0);
+    const src = map.getSource('water' + i);
+    src.play(); src.pause();  // one texture upload
+  });
+  if (map.terrain) map.terrain.sourceCache.freeRtt?.();
+  map.triggerRepaint();
+}
+
+// ---- GPU layer: vehicle dots move along their edge and 3D rain falls, both computed in the vertex shader ----
+const VS_DOTS = `#version 300 es
+precision highp float; precision highp int;
+uniform mat4 u_m; uniform highp sampler2D u_v; uniform float u_t; uniform float u_zs; uniform float u_ze; uniform float u_size;
+in vec4 a_d; in float a_c; out vec3 v_col;
+vec4 V(int i) { return texelFetch(u_v, ivec2(i % 2048, i / 2048), 0); }
+void main() {
+  int a = int(a_d.x + 0.5), b = int(a_d.y + 0.5);
+  float len = V(b).w, s = fract(a_d.z + u_t * a_d.w) * len;
+  int lo = a, hi = b;
+  for (int k = 0; k < 9; k++) { if (hi - lo <= 1) break; int m = (lo + hi) / 2; if (V(m).w <= s) lo = m; else hi = m; }
+  vec4 p = V(lo), q = V(hi);
+  float seg = q.w - p.w, f = seg > 0.0 ? (s - p.w) / seg : 0.0;
+  vec3 pos = mix(p.xyz, q.xyz, f); pos.z = pos.z * u_zs - u_ze;
+  gl_Position = u_m * vec4(pos, 1.0); gl_PointSize = u_size;
+  int c = int(a_c + 0.5);
+  v_col = c == 1 ? vec3(0.18,0.8,0.443) : c == 2 ? vec3(0.639,0.851,0.208) : c == 3 ? vec3(1.0,0.824,0.247) :
+          c == 4 ? vec3(1.0,0.549,0.239) : c == 5 ? vec3(1.0,0.231,0.231) : vec3(0.47,0.53,0.627);
+}`;
+const FS_DOTS = `#version 300 es
+precision mediump float; in vec3 v_col; out vec4 o;
+void main() { vec2 p = gl_PointCoord * 2.0 - 1.0; float r = dot(p, p); if (r > 1.0) discard;
+  vec3 c = r > 0.45 ? vec3(0.06, 0.12, 0.2) : v_col; float a = 1.0 - smoothstep(0.8, 1.0, r); o = vec4(c * a, a); }`;
+const VS_RAIN = `#version 300 es
+precision highp float;
+uniform mat4 u_m; uniform vec2 u_c; uniform vec2 u_box; uniform float u_top; uniform float u_tms; uniform float u_spd;
+uniform float u_len; uniform float u_mz; uniform float u_dx; uniform float u_ze;
+in vec4 a_h; in float a_e;
+void main() {
+  vec2 W = 2.0 * u_box, X0 = u_c - u_box;
+  vec2 xy = X0 + mod(a_h.xy * W - X0, W);
+  float v = (0.12 + a_h.w * 0.08) * u_spd;
+  float z = u_top - mod(a_h.z * u_top + u_tms * v, u_top);
+  vec3 p = vec3(xy, z * u_mz - u_ze);
+  if (a_e > 0.5) { p.x -= u_dx; p.z += u_len * u_mz; }
+  gl_Position = u_m * vec4(p, 1.0);
+}`;
+const FS_RAIN = `#version 300 es
+precision mediump float; uniform vec4 u_col; out vec4 o; void main() { o = u_col; }`;
+
+const ORIGIN = merc(98.35, 7.95);
+const fxLayer = {
+  id: 'fx', type: 'custom', renderingMode: '3d',
+  onAdd(m, gl) {
+    this.gl = gl;
+    this.ok = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+    if (!this.ok) return;
+    const prog = (vs, fs) => {
+      const p = gl.createProgram();
+      for (const [t, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
+        const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+        gl.attachShader(p, s);
+      }
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+      const u = {}, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+      for (let i = 0; i < n; i++) { const nm = gl.getActiveUniform(p, i).name; u[nm] = gl.getUniformLocation(p, nm); }
+      return { p, u, a: name => gl.getAttribLocation(p, name) };
+    };
+    this.dots = prog(VS_DOTS, FS_DOTS);
+    this.rain = prog(VS_RAIN, FS_RAIN);
+    // road vertices: x, y relative to ORIGIN (mercator), ground + 2 m (mercator units), distance along the edge (m)
+    const R = S.roads, W = 2048, H = Math.ceil(R.nv / W), tex = new Float32Array(W * H * 4);
+    const mz = maplibregl.MercatorCoordinate.fromLngLat([98.35, 7.95], 1).z;
+    for (let i = 0; i < R.nv; i++) {
+      const [x, y] = merc(R.lon[i], R.lat[i]);
+      tex[4 * i] = x - ORIGIN[0]; tex[4 * i + 1] = y - ORIGIN[1]; tex[4 * i + 2] = (R.z[i] + 2) * mz; tex[4 * i + 3] = R.cum[i];
+    }
+    this.mz = mz;
+    this.tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, W, H, 0, gl.RGBA, gl.FLOAT, tex);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST],
+                          [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    this.dotBuf = gl.createBuffer(); this.dotN = 0;
+    // rain: fixed random seeds, positions come from the shader
+    const MAXR = 15000, seeds = new Float32Array(MAXR * 2 * 5);
+    for (let i = 0; i < MAXR; i++) {
+      const h = [Math.random(), Math.random(), Math.random(), Math.random()];
+      for (let e = 0; e < 2; e++) seeds.set([...h, e], (2 * i + e) * 5);
+    }
+    this.rainBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.rainBuf); gl.bufferData(gl.ARRAY_BUFFER, seeds, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    this.vao = gl.createVertexArray();
+  },
+  setDots(data, n) {
+    if (!this.ok) return;
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.dotBuf); gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    this.dotN = n;
+  },
+  render(gl, matrix) {
+    if (!this.ok) return;
+    const drawDots = $('lCars').checked && this.dotN > 0, rain = fx.wn > 0 && !S.drag;
+    if (!drawDots && !rain) return;
+    const m = matrix, o = [ORIGIN[0], ORIGIN[1], 0], mm = Float32Array.from(m);
+    for (let i = 0; i < 4; i++) mm[12 + i] = m[i] * o[0] + m[4 + i] * o[1] + m[8 + i] * o[2] + m[12 + i];
+    // MapLibre's custom-layer matrix leaves out the terrain height under the map centre; take it off here
+    const ze = map.terrain ? (map.transform.elevation || 0) * this.mz : 0;
+    gl.bindVertexArray(this.vao);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    if (rain) {
+      const P = this.rain; gl.useProgram(P.p);
+      gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(false);
+      gl.uniformMatrix4fv(P.u.u_m, false, mm);
+      const c = map.getCenter(), cm = merc(c.lng, c.lat);
+      gl.uniform2f(P.u.u_c, cm[0] - ORIGIN[0], cm[1] - ORIGIN[1]);
+      gl.uniform2f(P.u.u_box, fx.box[0], fx.box[1]);
+      gl.uniform1f(P.u.u_top, RAIN_TOP); gl.uniform1f(P.u.u_tms, reduceMotion ? 0 : fx.tms % 7e6);
+      gl.uniform1f(P.u.u_spd, fx.speed); gl.uniform1f(P.u.u_len, fx.len); gl.uniform1f(P.u.u_mz, this.mz);
+      gl.uniform1f(P.u.u_dx, 0.00004 / 360); gl.uniform1f(P.u.u_ze, ze);
+      const dc = look().drop, a = 0.38;
+      gl.uniform4f(P.u.u_col, dc[0] * a, dc[1] * a, dc[2] * a, a);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.rainBuf);
+      const ah = P.a('a_h'), ae = P.a('a_e');
+      gl.enableVertexAttribArray(ah); gl.vertexAttribPointer(ah, 4, gl.FLOAT, false, 20, 0);
+      gl.enableVertexAttribArray(ae); gl.vertexAttribPointer(ae, 1, gl.FLOAT, false, 20, 16);
+      gl.drawArrays(gl.LINES, 0, 2 * fx.wn);
+      gl.disableVertexAttribArray(ah); gl.disableVertexAttribArray(ae);
+    }
+    if (drawDots) {
+      const P = this.dots; gl.useProgram(P.p);
+      gl.disable(gl.DEPTH_TEST);
+      gl.uniformMatrix4fv(P.u.u_m, false, mm);
+      gl.uniform1f(P.u.u_t, S.simT); gl.uniform1f(P.u.u_zs, map.terrain ? 1 : 0); gl.uniform1f(P.u.u_ze, ze);
+      gl.uniform1f(P.u.u_size, Math.max(3.5, Math.min(9, (map.getZoom() - 9) * 1.1)) * map.getPixelRatio());
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex); gl.uniform1i(P.u.u_v, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.dotBuf);
+      const ad = P.a('a_d'), ac = P.a('a_c');
+      gl.enableVertexAttribArray(ad); gl.vertexAttribPointer(ad, 4, gl.FLOAT, false, 20, 0);
+      gl.enableVertexAttribArray(ac); gl.vertexAttribPointer(ac, 1, gl.FLOAT, false, 20, 16);
+      gl.drawArrays(gl.POINTS, 0, this.dotN);
+      gl.disableVertexAttribArray(ad); gl.disableVertexAttribArray(ac);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindVertexArray(null);
+    gl.depthMask(true);
+  },
+};
+
+function buildDots() {  // once per 5-minute frame: which edge, phase and speed of each dot (positions: GPU)
+  if (!$('lCars').checked || !S.run) return;
+  const key = `${S.run.p}_${S.run.s}_${S.frame}`;
+  const d = S.nextDots && S.nextDots.key === key ? S.nextDots : dotData(S.frame);
+  S.nextDots = null;
+  S.dots = { m: d.m };
+  fxLayer.setDots(d.out.subarray(0, 5 * d.m), d.m);
+}
+function prefetchNext() {  // while playing: prepare the dots of the next 5-minute step when the browser is idle
+  if (!S.playing || !S.run || !$('lCars').checked) return;
+  const k = (S.frame + 1) % S.run.f, key = `${S.run.p}_${S.run.s}_${k}`, run = S.run;
+  (window.requestIdleCallback || (f => setTimeout(f, 50)))(() => { if (S.run === run) S.nextDots = { key, ...dotData(k) }; });
+}
+function dotData(k) {
+  const { n, off, cum } = S.roads, veh = S.run.veh, sp = S.run.speed, base = k * n;
+  let total = 0;
+  for (let e = 0; e < n; e++) total += Math.min(veh[base + e], MAX_DOTS_EDGE);
+  const scale = total > MAX_DOTS ? MAX_DOTS / total : 1;
+  const out = new Float32Array(Math.min(total, MAX_DOTS + n) * 5);
+  let m = 0;
+  for (let e = 0; e < n; e++) {
+    let c = Math.min(veh[base + e], MAX_DOTS_EDGE);
+    if (!c) continue;
+    c = Math.max(1, Math.round(c * scale));
+    const len = cum[off[e + 1] - 1];
+    if (len <= 0) continue;
+    const rate = sp[base + e] / 3.6 / len, cls = speedClass(sp[base + e]);
+    for (let j = 0; j < c && 5 * m + 5 <= out.length; j++, m++) out.set([off[e], off[e + 1] - 1, j / c, rate, cls], 5 * m);
+  }
+  return { out, m };
+}
+
+// ---- load ----
+async function load() {
+  const [meta, c, base, rb] = await Promise.all([json(D + 'meta.json.gz'), fetch(D + 'c.json').then(r => r.json()),
+    json(D + 'land.json.gz'), bytes(D + 'roads.bin.gz')]);
+  S.meta = meta; S.c = c; S.land = base;
+  mapReady.then(() => map.getSource('land').setData(base.land));
+  S.roads = decodeRoads(rb, c.roads);
+  S.sState = new Uint8Array(S.roads.n); S.wState = new Uint8Array(S.roads.n);
   setupControls();
-  const q = new URLSearchParams(location.search);  // ?p=period&s=scenario&f=frame&v=2d|island
-  if (q.get('p')) { $('period').value = q.get('p'); $('period').onchange(); }
-  if (q.get('s')) $('scenario').value = q.get('s');
-  if (q.get('f')) S.frame = +q.get('f');
-  if (q.get('v') === '2d') $('v2d').onclick();
-  if (q.get('v') === 'island') $('vIsland').onclick();
-  $('loading').remove();
+  if (Q.get('p')) { $('period').value = Q.get('p'); $('period').onchange(); }
+  if (Q.get('s')) $('scenario').value = Q.get('s');
+  if (Q.get('f')) S.frame = +Q.get('f');
   // live rain is the default menu; ?tab=sim, or a link that names a scenario (?s=), opens the step 8 results
-  const startLive = q.get('tab') ? q.get('tab') === 'live' : !q.get('s');
+  const startLive = Q.get('tab') ? Q.get('tab') === 'live' : !Q.get('s');
   if (startLive) {  // until the live rain arrives the map shows a dry day at the hour nearest now, not a flood case
     L.period = nearestPeriod();
     $('period').value = L.period; $('period').onchange();
     $('scenario').value = 'dry';
     S.frame = S.meta.warmup_frames + Math.floor(new Date().getMinutes() / 5);
   }
+  await mapReady;
+  addRoadLayers();
+  applyBase(S.base);
+  if (FORCE_Q) setQuality(FORCE_Q);
+  view(S.pitch, S.pitch ? P3D.bearing : 0, Q.get('v') === 'island' ? ISLAND : null, 0);
   await selectRun();
   setTab(startLive);
+  $('loading').remove();
+  initLocation();
+  if (PERF) { const t = setTimeout(reportPerf, 15000); map.once('idle', () => { clearTimeout(t); reportPerf(); }); }
   requestAnimationFrame(tick);
+}
+
+function reportPerf() {
+  if (!PERF || document.body.dataset.ready) return;
+  const res = performance.getEntriesByType('resource');
+  const sum = f => res.filter(f).reduce((a, r) => a + (r.transferSize || r.encodedBodySize || 0), 0);
+  const nav = performance.getEntriesByType('navigation')[0];
+  $('perf').textContent = JSON.stringify({ ms: Math.round(performance.now() - T0), html: nav ? nav.transferSize || nav.encodedBodySize : 0,
+    sameOrigin: sum(r => r.name.startsWith(location.origin)), crossOrigin: sum(r => !r.name.startsWith(location.origin)),
+    files: res.map(r => [r.name.split('?')[0].replace(location.origin, ''), r.transferSize || r.encodedBodySize]) });  // no query strings (keys)
+  document.body.dataset.ready = '1';
 }
 
 function setupControls() {
@@ -325,45 +863,70 @@ function setupControls() {
   };
   fill();
   $('scenario').value = m.series['morning_peak_heavy_reports'] ? 'heavy_reports' : $('scenario').value;
-  $('period').onchange = () => { fill(); selectRun(); };
+  $('period').onchange = () => { fill(); if (map.getSource('roads')) selectRun(); };
   $('scenario').onchange = selectRun;
   $('slider').oninput = e => { S.frame = +e.target.value; frameChanged(); };
-  $('play').onclick = () => { S.playing = !S.playing; $('play').textContent = S.playing ? '❚❚' : '▶'; S.last = 0; };
+  $('play').onclick = () => { S.playing = !S.playing; $('play').textContent = S.playing ? '❚❚' : '▶'; S.last = 0;
+    $('play').setAttribute('aria-label', S.playing ? 'หยุด' : 'เล่น'); };
   $('rate').onchange = e => { S.frameMs = 1000 * +e.target.value; };
-  const view = (pitch, bearing, place) => {
-    S.view = { ...S.view, ...(place || {}), pitch, bearing, transitionDuration: 800 };
-    $('v2d').classList.toggle('on', pitch === 0); $('v3d').classList.toggle('on', pitch > 0);
-    deckgl.setProps({ initialViewState: S.view });
-    if (pitch !== S.pitch) {  // 2D: roads and water only; 3D: buildings and terrain back on (both can be changed)
-      for (const id of ['lBld', 'lTer']) $(id).checked = pitch > 0;
-      S.pitch = pitch;
-      render();
-    }
-  };
   $('v2d').onclick = () => view(0, 0);
-  $('v3d').onclick = () => view(55, -20);
-  $('vTown').onclick = () => view(S.view.pitch, S.view.bearing, TOWN);
-  $('vIsland').onclick = () => view(S.view.pitch, S.view.bearing, ISLAND);
-  for (const id of ['lCars', 'lRoads', 'lBld', 'lTer', 'lWater', 'lNews', 'lRain']) $(id).onchange = render;
+  $('v3d').onclick = () => view(P3D.pitch, P3D.bearing);
+  let place = Q.get('v') === 'island' ? ISLAND : TOWN;  // last chosen of ตัวเมือง / ทั้งเกาะ, for the compass's second press
+  $('vTown').onclick = () => { place = TOWN; view(map.getPitch(), map.getBearing(), TOWN); };
+  $('vIsland').onclick = () => { place = ISLAND; view(map.getPitch(), map.getBearing(), ISLAND); };
+  // compass: 1st press = north up with the default tilt of the current mode (3D 55°, 2D flat), zoom and centre kept;
+  // pressed again when already north up = back to the starting view of the current place (ตัวเมือง / ทั้งเกาะ)
+  $('compass').onclick = () => {
+    const tilt = S.pitch > 0 ? P3D.pitch : 0;
+    const northUp = Math.abs(map.getBearing()) < 0.5 && Math.abs(map.getPitch() - tilt) < 0.5;
+    if (northUp) view(tilt, tilt ? P3D.bearing : 0, place);
+    else map.easeTo({ bearing: 0, pitch: tilt, duration: 600 });
+  };
+  const needle = () => { $('compass').firstElementChild.style.transform = `rotate(${-map.getBearing()}deg)`; };
+  map.on('rotate', needle); map.on('moveend', needle); needle();
+  for (const id of ['lRoads', 'lBld', 'lTer', 'lWater', 'lNews', 'lRain', 'lDrops']) $(id).onchange = render;
+  $('lCars').onchange = () => { buildDots(); render(); };
+  const setBase = b => { store.set('c.base', b); applyBase(b); };
+  $('bMap').onclick = () => setBase('map');
+  $('bSat').onclick = () => setBase('sat');
+  $('locBtn').onclick = () => { store.set('c.inPhuket', 'yes'); locate(); };  // pressing it is the user's own request
+  $('locYes').onclick = () => { store.set('c.inPhuket', 'yes'); locate(); };
+  $('locNo').onclick = () => { store.set('c.inPhuket', 'no'); $('askLoc').hidden = true; };
   $('layersBtn').onclick = () => { const open = $('layers').hidden; $('layers').hidden = !open;
     $('layersBtn').setAttribute('aria-expanded', String(open)); $('layersBtn').textContent = open ? 'ชั้นข้อมูล ▴' : 'ชั้นข้อมูล ▾'; };
   const fold = min => { $('ctl').classList.toggle('min', min); $('fold').textContent = min ? '+' : '–';
                         $('fold').setAttribute('aria-expanded', String(!min)); };
   $('fold').onclick = () => fold(!$('ctl').classList.contains('min'));
   if (innerWidth <= 640) fold(true);  // small screens start with the map visible
-  if (SMALL) {  // 2D first: no 13 MB of buildings and no terrain until 3D is pressed
-    $('v2d').classList.add('on'); $('v3d').classList.remove('on');
+  if (S.pitch === 0) {  // 2D first (phones, ?v=2d): no buildings and no terrain until 3D is pressed
     $('lBld').checked = false; $('lTer').checked = false;
   }
 }
 
+function view(pitch, bearing, place, duration = 800) {
+  pitch = Math.round(pitch);
+  const c = place ? { center: [place.longitude, place.latitude], zoom: place.zoom } : {};
+  $('v2d').classList.toggle('on', pitch === 0); $('v3d').classList.toggle('on', pitch > 0);
+  if (pitch !== S.pitch) {  // 2D: roads and water only; 3D: buildings and terrain back on (both can be changed)
+    for (const id of ['lBld', 'lTer']) $(id).checked = pitch > 0;
+    S.pitch = pitch;
+  }
+  render();  // first: switching the terrain on or off stops a camera animation that is already running
+  map.easeTo({ ...c, pitch, bearing, duration });
+}
+
 async function selectRun() {
   const p = $('period').value, s = $('scenario').value, m = S.meta;
-  const buf = await fetch(`${D}runs/${p}_${s}.bin`).then(r => r.arrayBuffer());
+  const raw = new Uint8Array(await bytes(`${D}runs/${p}_${s}.bin.gz`));
   if (p !== $('period').value || s !== $('scenario').value) return;  // a later selection is loading
-  const n = S.roads.n, f = m.frames[p].length;
-  S.run = { p, s, f, flood: m.floods.includes(s), speed: new Uint8Array(buf, 0, f * n),
-            veh: new Uint8Array(buf, f * n, f * n), depth: buf.byteLength > 2 * f * n ? new Uint8Array(buf, 2 * f * n, f * n) : null };
+  const n = S.roads.n, f = m.frames[p].length, parts = raw.length / (n * f);
+  const un = q => {  // edge-major (as stored) -> frame-major (as web/app)
+    const out = new Uint8Array(f * n), o = q * n * f;
+    for (let e = 0; e < n; e++) for (let k = 0, i = o + e * f; k < f; k++) out[k * n + e] = raw[i + k];
+    return out;
+  };
+  S.run = { p, s, f, flood: m.floods.includes(s), speed: un(0), veh: un(1), depth: parts > 2 ? un(2) : null };
+  if (s === 'heavy_flood') await ensureWater();
   $('slider').max = f - 1;
   S.frame = Math.min(S.frame, f - 1);
   const st = m.step8[`${p}_${s}`];
@@ -373,6 +936,7 @@ async function selectRun() {
   $('simImpact').innerHTML = s === 'dry' || !st || !d0 ? 'วันไม่มีฝน ใช้เป็นค่าเทียบของสถานการณ์อื่น'
     : `เทียบวันไม่มีฝนช่วงเดียวกัน: รถช้าลงราว <b>${Math.abs(Math.round(100 * (st.speed_kmh / d0.speed_kmh - 1)))}%</b> · ` +
       `เดินทางนานขึ้นราว <b>${Math.round(100 * (st.trip_min / d0.trip_min - 1))}%</b>`;
+  if (S.water) S.water.key = '';
   frameChanged();
 }
 
@@ -393,43 +957,21 @@ function frameChanged() {
   $('sSpeed').textContent = ser.speed_kmh[k].toFixed(1);
   $('sVeh').textContent = ser.vehicles[k].toLocaleString('th-TH');
   $('sAvoid').textContent = S.run.flood ? ser.avoid_km[k].toFixed(1) : '0';
+  applyRoadState();
   buildDots();
   drawChart();
   render();
+  updateMe();
+  prefetchNext();
 }
 
-function buildDots() {
-  const { n, off, cum } = S.roads, k = S.frame, veh = S.run.veh, sp = S.run.speed;
-  const base = k * n;
-  let total = 0;
-  for (let e = 0; e < n; e++) total += Math.min(veh[base + e], MAX_DOTS_EDGE);
-  const scale = total > MAX_DOTS ? MAX_DOTS / total : 1;
-  const list = [];
+function applyRoadState() {  // only the edges whose colour class changed get a new feature state
+  const R = S.roads, n = R.n, base = S.frame * n, sp = S.run.speed, dep = S.run.depth, ss = S.sState, ws = S.wState;
+  const set = (e, st) => map.setFeatureState({ source: 'roads', id: e + 1 }, st);
+  for (const e of R.main) { const c = speedClass(sp[base + e]); if (ss[e] !== c) { ss[e] = c; set(e, { s: c }); } }
   for (let e = 0; e < n; e++) {
-    let c = Math.min(veh[base + e], MAX_DOTS_EDGE);
-    if (!c) continue;
-    c = Math.max(1, Math.round(c * scale));
-    const len = cum[off[e + 1] - 1];
-    if (len <= 0) continue;
-    for (let j = 0; j < c; j++) list.push(e, j / c, len, sp[base + e] / 3.6);
-  }
-  const m = list.length / 4;
-  const pos = new Float32Array(3 * m), col = new Uint8Array(4 * m);
-  for (let i = 0; i < m; i++) col.set(speedColor(sp[base + list[4 * i]], 230), 4 * i);
-  S.dots = { list, m, pos, col };
-  placeDots();
-}
-
-function placeDots() {
-  const { list, m, pos } = S.dots, { off, v, cum } = S.roads, t = S.simT;
-  for (let i = 0; i < m; i++) {
-    const e = list[4 * i], len = list[4 * i + 2];
-    let s = ((list[4 * i + 1] + t * list[4 * i + 3] / len) % 1) * len;
-    let a = off[e], b = off[e + 1] - 1;
-    while (b - a > 1) { const c = (a + b) >> 1; if (cum[c] <= s) a = c; else b = c; }
-    const seg = cum[b] - cum[a], f = seg > 0 ? (s - cum[a]) / seg : 0;
-    for (let d = 0; d < 3; d++) pos[3 * i + d] = v[3 * a + d] + f * (v[3 * b + d] - v[3 * a + d]);
-    pos[3 * i + 2] += 2;
+    const d = dep ? dep[base + e] : 0, w = d >= 30 ? 2 : d >= 10 ? 1 : 0;
+    if (ws[e] !== w) { ws[e] = w; set(e, { w }); }
   }
 }
 
@@ -441,38 +983,17 @@ function drawChart() {
   const wx = x(m.warmup_frames) - (W - 8) / (f - 1) / 2;
   svg.innerHTML = `<rect x="0" y="0" width="${wx}" height="${H}" fill="rgba(127,147,171,0.12)"/>` +
     [30, 60, 90].map(v => `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(90,200,255,0.12)"/>
-      <text x="3" y="${y(v) + 9}" fill="#7f93ab" font-size="9">${v}</text>`).join('') +
-    (s !== 'dry' ? line(m.series[`${p}_dry`], '#7f93ab', true) : '') + line(m.series[`${p}_${s}`], '#d8e6f5') +
-    `<line x1="${x(S.frame)}" x2="${x(S.frame)}" y1="0" y2="${H}" stroke="#d8e6f5" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+      <text x="3" y="${y(v) + 9}" fill="#6b829e" font-size="9">${v}</text>`).join('') +
+    (s !== 'dry' ? line(m.series[`${p}_dry`], '#6b829e', true) : '') + line(m.series[`${p}_${s}`], '#38bdf8') +
+    `<line x1="${x(S.frame)}" x2="${x(S.frame)}" y1="0" y2="${H}" stroke="#f8fafc" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
   const fr = m.frames[p], end = S.meta.periods[p].replace(/^(\d+)/, h => String(+h + 1).padStart(2, '0'));
   $('chartX').innerHTML = `<span style="left:0">${fr[0]}</span>` +
     `<span style="left:${100 * wx / W}%">${fr[m.warmup_frames]} เริ่มชั่วโมงที่ศึกษา</span><span style="right:0">${end}</span>`;
   $('range').textContent = `${fr[0]}–${end} น. · ช่วงเตรียมระบบถึง ${fr[m.warmup_frames]} น. แล้วเป็นชั่วโมงที่ศึกษา`;
   const st = m.step8[`${p}_${s}`];
-  $('chartNote').innerHTML = `ความเร็วเฉลี่ยทั้งเกาะทุก 5 นาที (กม./ชม.) <span style="color:#d8e6f5">━ ${m.labels[s]}</span>` +
-    (s !== 'dry' ? ` <span style="color:#7f93ab">┅ ไม่มีฝน</span>` : '') + ' · ส่วนเทา = ช่วงเตรียมระบบ 30 นาที' +
+  $('chartNote').innerHTML = `ความเร็วเฉลี่ยทั้งเกาะทุก 5 นาที (กม./ชม.) <span style="color:#38bdf8">━ ${m.labels[s]}</span>` +
+    (s !== 'dry' ? ` <span style="color:#6b829e">┅ ไม่มีฝน</span>` : '') + ' · ส่วนเทา = ช่วงเตรียมระบบ 30 นาที' +
     (st ? `<br>เฉลี่ย ${st.seeds} รอบ: ${st.speed_kmh} (ต่ำสุด–สูงสุด ${st.speed_min}–${st.speed_max}) กม./ชม. · เวลาเดินทาง ${st.trip_min} นาที · ถนนรถติด ${st.congested_km} กม.` : '');
-}
-
-function waterDepthCm(i) {  // model flood depth of cell i at the current frame (hours 07:00, 08:00, 09:00)
-  const t = (S.frame * S.meta.frame_s - 1800) / 3600 + 1;   // 0 = 07:00 of the flood event
-  const a = Math.max(0, Math.min(1, Math.floor(t))), f = Math.max(0, Math.min(1, t - a));
-  const d = S.water.depth, n = S.water.n;
-  return (1 - f) * d[a * n + i] + f * d[Math.min(2, a + 1) * n + i];
-}
-
-let wetCache = {};
-function wetRoads(key, dep, base) {  // edges with >= 0.1 m of water in this frame, kept between renders
-  if (wetCache.key !== key) wetCache = { key, edges: S.roads.edges.filter(e => dep[base + e.i] >= 10) };
-  return wetCache.edges;
-}
-
-let bldLoading = null;
-function loadBuildings() {  // 13 MB, only needed in 3D: fetched the first time the layer is switched on
-  bldLoading = bldLoading || fetch(D + 'buildings.json').then(r => r.json()).then(bld => {
-    S.buildings = bld.map(b => ({ poly: b[0].map(p => [p[0], p[1], p[2] * EXAG]), h: b[1], tagged: b[2] }));
-    render();
-  });
 }
 
 // ---- live rain: ThaiWater public API (measured station rain, hourly; CORS allowed) ----
@@ -482,9 +1003,14 @@ const L = { stations: [], hours: [], cls: null, stamp: 0, auto: false, timer: nu
 
 function setTab(isLive) {  // two menus: the step 8 results (as before) and the live rain, which drives the map
   $('ctl').classList.toggle('live', isLive);
+  // the live tab follows the clock: no time bar, and the simulation playback stops
+  document.body.classList.toggle('live', isLive);
+  $('time').hidden = isLive;
+  if (isLive && S.playing) $('play').onclick();
   $('tabSim').classList.toggle('on', !isLive); $('tabLive').classList.toggle('on', isLive);
   $('tabSim').setAttribute('aria-selected', String(!isLive)); $('tabLive').setAttribute('aria-selected', String(isLive));
   if (isLive) {
+    if (Date.now() - WX.tried > 15 * 60 * 1000) fetchWx(); else updateWx();
     L.auto = true;  // the map follows the rain now
     if (L.cls) { L.auto = false; applyLive(L.cls); }
     if (!L.timer) { live(); L.timer = setInterval(live, 10 * 60 * 1000); }  // stations report hourly
@@ -492,6 +1018,7 @@ function setTab(isLive) {  // two menus: the step 8 results (as before) and the 
   $('subtitle').textContent = isLive ? 'ฝนจริงจากสถานีวัด · การจราจรเป็นค่าประมาณจากแบบจำลอง'
                                      : 'ลองเลือกช่วงเวลาและระดับฝน ดูว่ารถช้าลงแค่ไหน (ผลจากแบบจำลอง)';
   render();
+  updateMe();
 }
 function tickNow() {  // wall clock in Phuket (Asia/Bangkok), Thai date with the Buddhist year
   const d = new Date(), tz = { timeZone: 'Asia/Bangkok' };
@@ -525,8 +1052,10 @@ async function live() {
       cur[3] += 1;
     }
     L.hours = Object.keys(byHour).sort().map(t => ({ t, mm: byHour[t][0], at: byHour[t][1], wet: byHour[t][2], of: byHour[t][3] }));
+    if (FAKEWX && FAKEWX.mm != null && L.hours.length) Object.assign(L.hours[L.hours.length - 1], { mm: FAKEWX.mm, wet: 3 });
     L.stamp = Date.now();
     showLive();
+    updateMe();
     render();
   } catch (e) {
     $('liveMain').textContent = 'โหลดข้อมูลฝนไม่ได้';
@@ -546,7 +1075,7 @@ function showLive() {
   const names = { dry: 'ไม่มีฝน', light: 'ฝนเล็กน้อย', medium: 'ฝนปานกลาง', heavy: 'ฝนหนัก' };
   L.cls = rainClass(last.mm);
   const more = n >= span ? ' (อย่างน้อย เท่าที่มีข้อมูลย้อนหลัง)' : '';
-  $('liveIcon').textContent = !raining ? '☀️' : L.cls === 'heavy' ? '⛈️' : '🌧️';
+  updateWx();
   $('liveMain').textContent = raining ? `ฝนกำลังตก · ต่อเนื่องมา ${n} ชม.${more}` : `ตอนนี้ไม่มีฝน · หยุดมา ${n} ชม.${more}`;
   $('liveLevel').hidden = !raining;
   $('liveLevel').textContent = names[L.cls];
@@ -617,7 +1146,7 @@ $('liveFlood').onclick = () => applyLive('heavy_reports');
 // ---- falling rain drops: decoration only, density by the rain class of the scenario on the map ----
 const DROPS = { dry: 0, light: 350, medium: 1000, heavy: 2200 };  // drops on a 1600x1000 screen
 const RAIN_TOP = 700;  // m above ground where 3D drops start
-const fx = { drops: [], last: 0, w: [], wn: 0 };
+const fx = { drops: [], last: 0, wn: 0, box: [0, 0], tms: 0, speed: 1, len: 100 };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function rainCls() {
   // no drops until the scenario on the map is the right one: the run is loaded and, in the live menu, the live
@@ -632,25 +1161,31 @@ function rainFx(now) {
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, innerWidth, innerHeight);
-  const cls = rainCls(), on = $('lDrops').checked, in3d = (S.view.pitch || 0) > 5;
-  const dt0 = fx.last ? Math.min(50, now - fx.last) : 16;
-  if (in3d) {  // drops as short lines in world space, so they get perspective; the 2D overlay is cleared
-    rain3d(on ? DROPS[cls] : 0, dt0, cls);
-    fx.last = now;
+  const cls = rainCls(), on = $('lDrops').checked, in3d = map.getPitch() > 5;
+  const dt = fx.last ? Math.min(50, now - fx.last) : 16;
+  fx.last = now;
+  if (in3d && fxLayer.ok) {  // drops as short lines in world space (GPU layer), so they get perspective
+    const per = on ? DROPS[cls] * QMUL[S.q] : 0, deg = 360 / (256 * 2 ** map.getZoom());  // degrees per screen pixel
+    const want = Math.min(SMALL ? 3000 : 15000, Math.round((SMALL ? 0.4 : 1) * per * (1.8 * innerWidth) * (2.8 * innerHeight) / 1.6e6));
+    fx.box = [innerWidth * deg * 0.9 / 360, innerHeight * deg * 1.4 / 360];
+    fx.speed = cls === 'heavy' ? 1.3 : cls === 'medium' ? 1.0 : 0.8;
+    // m; shorter lines read as dots from the 3D camera, and shorter still when zoomed in close
+    fx.len = (cls === 'heavy' ? 140 : 100) * Math.min(1, Math.max(0.12, 2 ** (13.4 - map.getZoom())));
+    if (!S.drag) fx.tms += dt;
+    fx.wn = want;
+    fx.drops.length = 0;
     requestAnimationFrame(rainFx);
     return;
   }
-  if (fx.wn) { fx.w = []; fx.wn = 0; render(); }
-  // 2D: softer than 3D, fewer drops in three depth layers (far = faint, short, slow; near = brighter, longer)
-  const want = on ? Math.round((SMALL ? 0.4 : 0.6) * DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
+  fx.wn = 0;
+  // 2D: softer than 3D, fewer drops in three depth layers (far = faint, short, slow; near = darker, longer)
+  const want = on && !S.drag ? Math.round((SMALL ? 0.4 : 0.6) * QMUL[S.q] * DROPS[cls] * innerWidth * innerHeight / 1.6e6) : 0;
   while (fx.drops.length < want) {
     const z = Math.random() < 0.5 ? 0 : Math.random() < 0.6 ? 1 : 2;
     fx.drops.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, z,
                     v: [0.35, 0.55, 0.8][z] * (0.85 + Math.random() * 0.3), l: [6, 10, 15][z] * (0.8 + Math.random() * 0.4) });
   }
   fx.drops.length = want;
-  const dt = fx.last ? Math.min(50, now - fx.last) : 16;
-  fx.last = now;
   const speed = cls === 'heavy' ? 1.15 : cls === 'medium' ? 1.0 : 0.85, wind = 0.1;
   const heavy = cls === 'heavy' ? 1.25 : 1;
   g.lineCap = 'round';
@@ -673,124 +1208,392 @@ function rainFx(now) {
   }
   requestAnimationFrame(rainFx);
 }
-requestAnimationFrame(rainFx);
 
-function rain3d(per, dt, cls) {
-  const v = S.view, deg = 360 / (256 * 2 ** v.zoom);  // degrees per screen pixel at this zoom
-  const hx = innerWidth * deg * 0.9, hy = innerHeight * deg * 1.4;  // a little wider than the screen (far side in 3D)
-  // same density as the 2D overlay: `per` drops per 1600x1000 px of ground, over the whole box (about 5 screens)
-  const want = Math.min(SMALL ? 3000 : 15000, Math.round((SMALL ? 0.4 : 1) * per * (2 * hx / deg) * (2 * hy / deg) / 1.6e6));
-  const spawn = d => { d.lon = v.longitude + (Math.random() * 2 - 1) * hx; d.lat = v.latitude + (Math.random() * 2 - 1) * hy;
-                       d.z = Math.random() * RAIN_TOP; d.v = 0.12 + Math.random() * 0.08; return d; };
-  while (fx.w.length < want) fx.w.push(spawn({}));
-  fx.w.length = want;
-  const speed = cls === 'heavy' ? 1.3 : cls === 'medium' ? 1.0 : 0.8;
-  for (const d of fx.w) {
-    if (!reduceMotion) d.z -= d.v * speed * dt;
-    if (d.z < 0 || Math.abs(d.lon - v.longitude) > hx || Math.abs(d.lat - v.latitude) > hy) { spawn(d); d.z = RAIN_TOP; }
-  }
-  fx.wn = want;
-  fx.len = cls === 'heavy' ? 140 : 100;  // m; shorter lines read as dots from the 3D camera
-  render();
+// ---- layer visibility (cheap: only toggles, the data stays on the GPU) ----
+function vis(id, on) {
+  if (map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== (on ? 'visible' : 'none'))
+    map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
 }
-
 function render() {
-  if (!S.run) return;
-  const { n } = S.roads, k = S.frame, base = k * n, sp = S.run.speed, dep = S.run.depth, trig = `${S.run.p}${S.run.s}${k}`;
-  const layers = [new deck.PathLayer({ id: 'coast', data: S.base.coast, getPath: d => d, widthUnits: 'pixels',
-    getWidth: 1.2, getColor: [120, 150, 190, 150] })];
-  if ($('lTer').checked) layers.push(new deck.PathLayer({ id: 'terrain', data: S.terrain, getPath: d => d,
-    getColor: [40, 110, 170, 70], widthUnits: 'pixels', getWidth: 1, parameters: ADD }));
-  if ($('lWater').checked && S.run.s === 'heavy_flood') layers.push(new deck.SolidPolygonLayer({ id: 'water',
-    data: S.water.cells, getPolygon: c => c.poly, getFillColor: c => {
-      const d = waterDepthCm(c.i);
-      return d < 10 ? [0, 0, 0, 0] : d < 30 ? [60, 120, 255, 45] : [61, 123, 255, 85];
-    }, updateTriggers: { getFillColor: trig }, parameters: { depthTest: false } }));
-  if ($('lBld').checked && !S.buildings) loadBuildings();
-  if ($('lBld').checked && S.buildings) layers.push(new deck.PolygonLayer({ id: 'buildings', data: S.buildings,
-    getPolygon: b => b.poly, extruded: true, wireframe: true, filled: false, getElevation: b => b.h * EXAG,
-    getLineColor: b => b.tagged ? [190, 90, 255, 140] : [140, 70, 220, 40], parameters: ADD }));
-  if ($('lRoads').checked) {
-    if (dep) layers.push(new deck.PathLayer({ id: 'roadwater', data: wetRoads(trig, dep, base),
-      getPath: e => e.path, positionFormat: 'XYZ', widthUnits: 'pixels', widthMinPixels: 3,
-      getWidth: e => dep[base + e.i] >= 30 ? 7 : 4,
-      getColor: e => dep[base + e.i] >= 30 ? [47, 123, 255, 230] : [127, 178, 255, 170],
-      updateTriggers: { getWidth: trig, getColor: trig }, parameters: { depthTest: false } }));
-    layers.push(new deck.PathLayer({ id: 'roads', data: S.roads.edges, getPath: e => e.path, positionFormat: 'XYZ',
-      widthUnits: 'pixels', getWidth: e => e.kind <= 2 ? 3 : e.kind === 3 ? 2.2 : e.kind === 4 ? 1.6 : 0.7,
-      // speed colour on the main roads only (motorway..tertiary); minor roads stay grey so the picture reads
-      getColor: e => e.kind <= 4 ? speedColor(sp[base + e.i], 235) : [92, 100, 120, 110],
-      updateTriggers: { getColor: trig }, pickable: true, autoHighlight: true, highlightColor: [255, 255, 255, 220],
-      parameters: { depthTest: false } }));
+  if (!S.run || !map.getSource('roads')) return;
+  const liveTab = $('ctl').classList.contains('live');
+  if ($('lTer').checked) ensureTerrain();
+  if ($('lBld').checked) ensureBuildings();
+  const ter = $('lTer').checked;
+  if (ter && !map.terrain) map.setTerrain({ source: 'dem', exaggeration: 1 });
+  if (!ter && map.terrain) map.setTerrain(null);
+  const sat = S.base === 'sat';
+  vis('sat', sat); vis('land', !sat); vis('coast', !sat);
+  vis('hillshade', ter && !sat && S.q < 2); vis('grid', ter && !sat);
+  vis('buildings', $('lBld').checked);
+  const roads = $('lRoads').checked;
+  for (const id of ['roads-minor', 'roads-casing', 'roads-main']) vis(id, roads);
+  for (const id of ['roadwater-wet', 'roadwater-avoid']) vis(id, roads && !!S.run.depth);
+  const water = $('lWater').checked && S.run.s === 'heavy_flood' && S.water;
+  for (let i = 0; i < 4; i++) vis('water' + i, !!water);
+  if (water) drawWater();
+  vis('news', $('lNews').checked && S.run.flood);
+  vis('rain', $('lRain').checked && L.stations.length > 0 && liveTab);
+  if (L.stations.length && S.rainStamp !== L.stamp) {
+    S.rainStamp = L.stamp;
+    map.getSource('rain').setData({ type: 'FeatureCollection', features: L.stations.map(d => (
+      { type: 'Feature', properties: d, geometry: { type: 'Point', coordinates: [d.lon, d.lat] } })) });
   }
-  if ($('lCars').checked && S.dots) layers.push(new deck.ScatterplotLayer({ id: 'cars',
-    data: { length: S.dots.m, attributes: { getPosition: { value: S.dots.pos, size: 3 },
-                                             getFillColor: { value: S.dots.col, size: 4, normalized: true } } },
-    radiusUnits: 'pixels', getRadius: 1.8, parameters: ADD, updateTriggers: { getPosition: S.simT } }));
-  if ($('lNews').checked && S.run.flood) layers.push(new deck.ScatterplotLayer({ id: 'news', data: S.meta.news,
-    getPosition: d => [d.lon, d.lat, 5], radiusUnits: 'pixels', getRadius: 9, stroked: true, filled: true,
-    getFillColor: [255, 255, 255, 25], getLineColor: [255, 255, 255, 220], lineWidthUnits: 'pixels', getLineWidth: 2,
-    pickable: true, parameters: { depthTest: false } }));
-  if ($('lRain').checked && L.stations.length && $('ctl').classList.contains('live')) layers.push(new deck.ScatterplotLayer({ id: 'rain', data: L.stations,
-    getPosition: d => [d.lon, d.lat, 8], radiusUnits: 'pixels', getRadius: d => 5 + Math.min(14, 1.6 * (d.r1 || 0)),
-    stroked: true, getFillColor: d => d.r1 >= 0.1 ? [77, 141, 255, 200] : d.r1 === 0 ? [127, 147, 171, 60] : [0, 0, 0, 0],
-    getLineColor: [210, 225, 255, 220], lineWidthUnits: 'pixels', getLineWidth: 1.2, pickable: true,
-    updateTriggers: { getRadius: L.stamp, getFillColor: L.stamp }, parameters: { depthTest: false } }));
-  if (fx.wn) layers.push(new deck.LineLayer({ id: 'drops', data: fx.w, getSourcePosition: d => [d.lon, d.lat, d.z],
-    getTargetPosition: d => [d.lon - 0.00004, d.lat, d.z + fx.len], getColor: [190, 215, 255, 170], widthUnits: 'pixels',
-    getWidth: 1.4, updateTriggers: { getSourcePosition: fx.last, getTargetPosition: fx.last } }));
-  deckgl.setProps({ layers });
+  map.triggerRepaint();
 }
 
-function tooltip({ object, layer }) {
-  if (!object || !layer) return null;
-  if (layer.id === 'rain') return { html: `<b>${object.name}</b> (${object.agency})<br>` +
-    `ฝน 1 ชม. ล่าสุด: ${object.r1 == null ? 'ไม่มีข้อมูล' : object.r1 + ' มม.'}<br>ฝน 24 ชม.: ${object.r24 ?? '–'} มม.<br>` +
-    `เวลาข้อมูล: ${object.time} น.` };
-  if (layer.id === 'news') return { html: `<b>${object.id} ${object.location}</b><br>ข่าวรายงาน: ${object.severity}<br>29 ต.ค. 2569` };
-  if (layer.id !== 'roads') return null;
-  const e = object.i, k = S.frame * S.roads.n + e, r = S.roads.meta;
+// ---- sky icon: Open-Meteo decides the sky (day/night, clear, cloud, fog, thunder); ThaiWater decides rain ----
+// One request for the 10 place centres of basemap.json; your position is never sent. CC BY 4.0, credited.
+const FAKEWX = (() => {  // debug only, localhost only: ?fakewx=<weather_code>,<is_day>[,<measured rain mm>]
+  const v = LOCALHOST && Q.get('fakewx');
+  if (!v) return null;
+  const [code, day, mm] = v.split(',').map(Number);
+  return { code, day, mm: Number.isFinite(mm) ? mm : null };
+})();
+const WX = { list: null, stamp: 0, tried: 0, loading: false };
+async function fetchWx() {
+  if (WX.loading || !S.land) return;
+  WX.loading = true; WX.tried = Date.now();
+  try {
+    if (FAKEWX) {
+      WX.list = S.land.places.map(() => ({ weather_code: FAKEWX.code, is_day: FAKEWX.day, temperature_2m: 27.4, time: null }));
+    } else {
+      const P = S.land.places, r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + P.map(p => p.lat.toFixed(4)).join(',') +
+        '&longitude=' + P.map(p => p.lon.toFixed(4)).join(',') +
+        '&current=weather_code,is_day,temperature_2m,cloud_cover,precipitation&timezone=Asia%2FBangkok');
+      if (!r.ok) throw new Error(r.status);
+      const j = await r.json();
+      WX.list = (Array.isArray(j) ? j : [j]).map(x => x.current);
+    }
+    WX.stamp = Date.now();
+  } catch (e) { /* fall back quietly to ThaiWater rain + the clock */ }
+  WX.loading = false;
+  updateWx();
+}
+// refresh every 15 min while the live tab is open and the browser tab is visible
+setInterval(() => { if (liveOpen() && !document.hidden && Date.now() - WX.tried > 15 * 60 * 1000) fetchWx(); }, 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && liveOpen() && Date.now() - WX.tried > 15 * 60 * 1000) fetchWx(); });
+function liveOpen() { return $('ctl').classList.contains('live'); }
+
+// 48x48 icons. Day = solid warm sun with rays, night = solid cream crescent with stars; both on the same spot and
+// size, so only the sun/moon tells day from night. A faint warm (day) or cool (night) glow sits behind them.
+let wxMaskN = 0;
+function glow(cx, cy, r, rgb, a) {  // soft halo: warm for day, cool for night
+  const id = 'wxg' + (++wxMaskN);
+  return `<radialGradient id="${id}"><stop offset="0" stop-color="rgb(${rgb})" stop-opacity="${a}"/>` +
+    `<stop offset="1" stop-color="rgb(${rgb})" stop-opacity="0"/></radialGradient><circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id})"/>`;
+}
+function sunAt(cx, cy, r) {
+  const rays = [];
+  for (let k = 0; k < 8; k++) {
+    const a = k * Math.PI / 4, c = Math.cos(a), s = Math.sin(a);
+    rays.push(`M${(cx + c * (r + 2.4)).toFixed(1)} ${(cy + s * (r + 2.4)).toFixed(1)}L${(cx + c * (r + 5.6)).toFixed(1)} ${(cy + s * (r + 5.6)).toFixed(1)}`);
+  }
+  return glow(cx, cy, r + 9, '251, 191, 36', 0.34) +
+    `<g class="spin" style="transform-origin: ${cx}px ${cy}px"><path d="${rays.join('')}" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round"/></g>` +
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fcd34d" stroke="#fde68a" stroke-width="1"/>`;
+}
+function moonAt(cx, cy, r) {
+  const id = 'wxm' + (++wxMaskN), star = (x, y, s) =>
+    `<path d="M${x} ${y - s}L${x + s * 0.3} ${y - s * 0.3}L${x + s} ${y}L${x + s * 0.3} ${y + s * 0.3}L${x} ${y + s}L${x - s * 0.3} ${y + s * 0.3}L${x - s} ${y}L${x - s * 0.3} ${y - s * 0.3}Z" fill="#fef3c7"/>`;
+  return glow(cx, cy, r + 9, '147, 197, 253', 0.28) +
+    `<mask id="${id}"><rect width="48" height="48" fill="#fff"/><circle cx="${cx + r * 0.55}" cy="${cy - r * 0.35}" r="${r * 0.85}" fill="#000"/></mask>` +
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fde68a" mask="url(#${id})"/>` +
+    star(cx + r * 1.15, cy - r * 0.55, r * 0.32) + star(cx + r * 0.55, cy + r * 0.15, r * 0.2);
+}
+const CLOUD_D = 'M14 36h20a7 7 0 0 0 .8-13.96A10 10 0 0 0 15.4 22.5 7 7 0 0 0 14 36z';  // box about x 7-42, y 12-36
+const WXICON = {
+  sun: () => sunAt(24, 24, 9),
+  moon: () => moonAt(23, 25, 11),
+  // partly cloudy and cloudy share the sun/moon spot and size (upper left); only the cloud differs
+  sky_d: () => sunAt(19, 18, 8),
+  sky_n: () => moonAt(19, 18, 9),
+  pccloud: `<g transform="translate(21 24) scale(0.7) translate(-7 -12)"><path class="cl" style="fill: #f1f5f9; stroke: #ffffff" d="${CLOUD_D}"/></g>`,
+  bigcloud: `<g transform="translate(14 22) scale(0.97) translate(-7 -12)"><path class="cl" style="fill: #64748b; stroke: #cbd5e1" d="${CLOUD_D}"/></g>`,
+  cloud: `<path class="cl" d="${CLOUD_D}"/>`,
+  fog: '<path class="st" d="M10 18h28M6 24h32M12 30h28M8 36h24" stroke="#cbd5e1"/>',
+  drizzle: '<path class="ac drop" d="M18 39v3M26 39v3M34 39v3"/>',
+  rain: '<path class="ac drop" d="M17 38l-2 6M24 38l-2 6M31 38l-2 6"/>',
+  heavy: '<path class="ac drop" d="M15 38l-3 8M21 38l-3 8M27 38l-3 8M33 38l-3 8"/>',
+  bolt: '<path class="bolt flash" d="M25 33l-5 8h4l-2 6 7-9h-4l2-5z"/>',
+};
+function wxSvg(parts, label) {
+  return `<svg class="wxi" viewBox="0 0 48 48" role="img" aria-label="${label}"><title>${label}</title>` +
+    parts.map(p => typeof WXICON[p] === 'function' ? WXICON[p]() : WXICON[p]).join('') + '</svg>';
+}
+function updateWx() {
+  const me = ME.pos, P = S.land ? S.land.places : [];
+  let i = P.findIndex(p => p.kind === 'city');
+  if (me && P.length) i = P.map((p, k) => [meters(me.lon, me.lat, p.lon, p.lat), k]).sort((a, b) => a[0] - b[0])[0][1];
+  const cur = WX.list && WX.list[i];
+  const hr = +new Date().toLocaleString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', hour12: false });
+  const day = cur ? cur.is_day === 1 : hr >= 6 && hr < 18;
+  const code = cur ? cur.weather_code : null;
+  const h = L.hours, measured = h.length ? h[h.length - 1].mm : null;
+  const raining = measured != null && measured >= RAIN_MIN, cls = raining ? rainClass(measured) : 'dry';
+  const thunder = code != null && code >= 95;
+  let parts, text;
+  if (raining) {  // ThaiWater says rain: a rain icon of its level, thunder if the sky model says thunderstorm
+    parts = ['cloud', thunder ? 'bolt' : cls === 'light' ? 'drizzle' : cls === 'medium' ? 'rain' : 'heavy'];
+    if (thunder) parts.push(cls === 'heavy' ? 'heavy' : 'rain');
+    text = thunder ? `ฝนฟ้าคะนอง (${RAIN_NAMES[cls]})` : RAIN_NAMES[cls];
+  } else if (thunder) { parts = ['cloud', 'bolt']; text = 'มีเมฆฝนฟ้าคะนอง (สถานีวัดยังไม่มีฝน)'; }
+  else if (code === 45 || code === 48) { parts = ['fog']; text = 'หมอก'; }
+  else if (code === 2) { parts = [day ? 'sky_d' : 'sky_n', 'pccloud']; text = 'มีเมฆบางส่วน'; }
+  else if (code != null && code >= 3) {  // also drizzle/rain codes when the stations measure no rain
+    parts = [day ? 'sky_d' : 'sky_n', 'bigcloud']; text = 'มีเมฆมาก';
+  }
+  else { parts = [day ? 'sun' : 'moon']; text = day ? 'ท้องฟ้าแจ่มใส' : 'ท้องฟ้าโปร่ง (กลางคืน)'; }
+  const label = text + (day ? ' (กลางวัน)' : ' (กลางคืน)');
+  $('liveIcon').innerHTML = wxSvg(parts, label);
+  $('liveIcon').setAttribute('aria-label', label);
+  const when = WX.stamp ? new Date(WX.stamp).toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' }) : '';
+  const where = P[i] ? (P[i].kind === 'city' ? 'ตัวเมืองภูเก็ต' : P[i].name) : '';
+  $('wx').innerHTML = cur
+    ? `<b>${text}</b> · ${cur.temperature_2m.toFixed(0)}°C · อัปเดต ${when} น.` +
+      `<div class="small">ท้องฟ้าและอุณหภูมิบริเวณ${where}เป็นค่าประมาณจากแบบจำลอง (สภาพอากาศ: Open-Meteo) ไม่ใช่ค่าที่สถานีวัด · ฝนใช้ค่าที่สถานีวัดจริง</div>`
+    : `<b>${text}</b>` + (WX.tried && !WX.loading ? '<div class="small">ยังโหลดข้อมูลท้องฟ้าไม่ได้ ไอคอนใช้ฝนจากสถานีวัดและเวลากลางวัน/กลางคืน</div>' : '');
+}
+
+// ---- location: only in this browser. Never sent anywhere, never logged, never put in the URL ----
+const ME = { pos: null, dist: null };
+const RAIN_NAMES = { dry: 'ไม่มีฝน', light: 'ฝนเล็กน้อย', medium: 'ฝนปานกลาง', heavy: 'ฝนหนัก' };
+const inPhuket = (lon, lat) => lon >= LIMIT.lon[0] && lon <= LIMIT.lon[1] && lat >= LIMIT.lat[0] && lat <= LIMIT.lat[1];
+const meters = (lo1, la1, lo2, la2) => Math.hypot((lo2 - lo1) * 111320 * Math.cos(la1 * Math.PI / 180), (la2 - la1) * 110540);
+const km = m => m < 1000 ? `${Math.round(m / 10) * 10} ม.` : `${(m / 1000).toFixed(1)} กม.`;
+
+function initLocation() {
+  const fake = LOCALHOST && Q.get('fakeloc');  // debug only, and only on this computer
+  if (fake) { const [la, lo] = fake.split(',').map(Number); setPosition({ latitude: la, longitude: lo, accuracy: 35 }); return; }
+  const ans = store.get('c.inPhuket');
+  if (!ans) { $('askLoc').hidden = false; return; }
+  // said "yes" before: locate again only if the browser already allows it (no surprise permission prompt)
+  if (ans === 'yes' && navigator.permissions) navigator.permissions.query({ name: 'geolocation' })
+    .then(p => { if (p.state === 'granted') locate(); }).catch(() => {});
+}
+
+function locate() {
+  const card = $('askLoc'), msg = $('locMsg');
+  card.hidden = false;
+  if (!window.isSecureContext || !navigator.geolocation) {
+    msg.textContent = !window.isSecureContext ? 'ต้องเปิดหน้าเว็บผ่าน https จึงหาตำแหน่งได้' : 'เบราว์เซอร์นี้หาตำแหน่งไม่ได้';
+    return;
+  }
+  msg.textContent = 'กำลังหาตำแหน่ง…';
+  navigator.geolocation.getCurrentPosition(p => setPosition(p.coords), err => {
+    msg.textContent = err.code === 1 ? 'คุณไม่ได้อนุญาตให้ใช้ตำแหน่ง เปิดได้ในการตั้งค่าของเบราว์เซอร์ แล้วกด 📍 อีกครั้ง'
+      : err.code === 3 ? 'หาตำแหน่งนานเกินไป ลองกด 📍 อีกครั้ง' : 'ตอนนี้หาตำแหน่งไม่ได้ ลองใหม่อีกครั้งภายหลัง';
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+}
+
+function setPosition(c) {
+  const lon = c.longitude, lat = c.latitude, acc = Math.min(c.accuracy || 50, 5000);
+  if (!inPhuket(lon, lat)) {
+    $('askLoc').hidden = false;
+    $('locMsg').textContent = 'ตำแหน่งของคุณอยู่นอกภูเก็ต แผนที่จึงไม่เลื่อนไป';
+    return;
+  }
+  $('askLoc').hidden = true; $('locMsg').textContent = '';
+  if ($('ctl').classList.contains('min')) $('fold').onclick();  // show the summary for your position
+  ME.pos = { lon, lat, acc };
+  // distance from you to every road edge (nearest point of its line), once per position
+  const R = S.roads, d = new Float32Array(R.n), kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110540;
+  for (let e = 0; e < R.n; e++) {
+    let best = Infinity;
+    for (let k = R.off[e]; k < R.off[e + 1] - 1; k++) {
+      const ax = (R.lon[k] - lon) * kx, ay = (R.lat[k] - lat) * ky, bx = (R.lon[k + 1] - lon) * kx, by = (R.lat[k + 1] - lat) * ky;
+      const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+      const t = l2 > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+      best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+    }
+    d[e] = best;
+  }
+  ME.dist = d;
+  updateWx();
+  const ring = [];
+  for (let i = 0; i <= 48; i++) { const a = 2 * Math.PI * i / 48; ring.push([lon + acc * Math.cos(a) / kx, lat + acc * Math.sin(a) / ky]); }
+  map.getSource('me').setData({ type: 'FeatureCollection', features: [
+    { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } },
+    { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [lon, lat] } }] });
+  map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 14.2), duration: 1200 });
+  if (!L.stamp && !L.meLoading) { L.meLoading = true; live(); }  // the public rain data (no position is sent)
+  updateMe();
+}
+
+function updateMe() {
+  const box = $('me');
+  if (!ME.pos || !S.run) { box.hidden = true; return; }
+  const { lon, lat } = ME.pos, liveTab = $('ctl').classList.contains('live');
+  let h = '<h3>ฝนตอนนี้ตรงที่คุณอยู่</h3>';
+  const st = L.stations.filter(x => x.r1 != null && x.lat && x.lon);
+  if (!L.stations.length) h += '<div class="small">กำลังโหลดข้อมูลฝนจาก ThaiWater…</div>';
+  else if (!st.length) h += '<div class="small">ไม่มีสถานีที่รายงานฝนรายชั่วโมงตอนนี้</div>';
+  else {
+    const near = st.map(x => ({ x, m: meters(lon, lat, x.lon, x.lat) })).sort((a, b) => a.m - b.m)[0];
+    const cls = rainClass(near.x.r1);
+    h += `สถานีที่ใกล้ที่สุด: <b>${near.x.name}</b> ห่าง ${km(near.m)}<br>` +
+      `ฝน 1 ชม. ล่าสุด: <b>${RAIN_NAMES[cls]}</b> (${near.x.r1} มม.) · ข้อมูลเวลา ${near.x.time} น.` +
+      '<div class="small">ฝนที่สถานีวัดได้ ไม่ใช่ฝนตรงจุดที่คุณยืนพอดี</div>';
+  }
+  // roads within 2 km in the scenario that is on the map now
+  const R = S.roads, n = R.n, base = S.frame * n, sp = S.run.speed, dep = S.run.depth, by = [0, 0, 0, 0, 0, 0];
+  let tot = 0;
+  for (const e of R.main) if (ME.dist[e] <= 2000) { const l = R.len[e] / 10; by[speedClass(sp[base + e])] += l; tot += l; }
+  const m = S.meta, time = `${m.frames[S.run.p][S.frame]} น.`;
+  h += '<h3>ถนนใกล้คุณ (ในรัศมี 2 กม.)</h3>';
+  h += liveTab ? '<div class="small">ค่าประมาณจากแบบจำลองตามระดับฝนตอนนี้ (สมมติฝนเท่ากันทั้งเกาะ) ไม่ใช่สภาพจราจรจริงตอนนี้</div>'
+               : `<div class="small">จากสถานการณ์จำลอง "${m.labels[S.run.s]}" เวลา ${time} ไม่ใช่การพยากรณ์</div>`;
+  if (!tot) h += 'ไม่มีถนนสายหลักในรัศมี 2 กม.';
+  else {
+    const lab = ['ไม่มีรถผ่าน', '≥ 60', '40–60', '20–40', '10–20', '< 10'];
+    h += '<div class="bar">' + [1, 2, 3, 4, 5, 0].map(c => by[c] ? `<i style="width:${100 * by[c] / tot}%;background:${SPEED_HEX[c]}"></i>` : '').join('') + '</div>';
+    h += '<div class="small">ถนนสายหลัก ' + [1, 2, 3, 4, 5, 0].filter(c => by[c]).map(c =>
+      `<span style="color:${SPEED_HEX[c]}">■</span> ${lab[c]}${c ? ' กม./ชม.' : ''} ${Math.round(100 * by[c] / tot)}%`).join(' · ') + ' (สัดส่วนตามความยาวถนน)</div>';
+  }
+  // water: only where the scenario on the map has water on the roads; the live rain alone never predicts a flood
+  if (liveTab && !S.run.flood) h += '<div class="small" style="margin-top:4px">หน้าเว็บนี้ไม่ได้ทำนายน้ำท่วม จึงไม่บอกว่าถนนใกล้คุณมีน้ำขังหรือไม่</div>';
+  else if (!dep) h += '<div class="small" style="margin-top:4px">สถานการณ์นี้ไม่มีน้ำบนถนน</div>';
+  else {
+    let best = -1;
+    for (let e = 0; e < n; e++) if (dep[base + e] >= 30 && (best < 0 || ME.dist[e] < ME.dist[best])) best = e;
+    if (best < 0) h += '<div style="margin-top:4px">เวลานี้ไม่มีถนนที่ควรเลี่ยงเพราะน้ำขัง</div>';
+    else h += `<div style="margin-top:4px">ถนนน้ำขังที่ใกล้ที่สุด: <b>${R.names[R.name[best]] || R.kinds[R.kind[best]]}</b> ห่าง ${km(ME.dist[best])} · ` +
+      `<b style="color:#8fb4ff">ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย</b></div>` +
+      (liveTab ? '<div class="small">ตัวอย่างจากเหตุการณ์ 29 ต.ค. 2569 ไม่ใช่การทำนาย</div>' : '');
+  }
+  box.innerHTML = h;
+  box.hidden = false;
+}
+
+// ---- hover / tap: road speed, news spot, rain station ----
+function tooltip(f) {
+  const p = f.properties, id = f.layer.id;
+  if (id === 'rain') return `<b>${p.name}</b> (${p.agency})<br>` +
+    `ฝน 1 ชม. ล่าสุด: ${p.r1 == null ? 'ไม่มีข้อมูล' : p.r1 + ' มม.'}<br>ฝน 24 ชม.: ${p.r24 ?? '–'} มม.<br>เวลาข้อมูล: ${p.time} น.`;
+  if (id === 'news') return `<b>${p.id} ${p.location}</b><br>ข่าวรายงาน: ${p.severity}<br>29 ต.ค. 2569`;
+  const e = f.id - 1, k = S.frame * S.roads.n + e, R = S.roads;
   const v = S.run.speed[k], c = S.run.veh[k], d = S.run.depth ? S.run.depth[k] : 0;
   let msg = '';
   if (d >= 30) msg = `<br><b style="color:#8fb4ff">ควรเลี่ยง อาจมีน้ำท่วมขัง รอระบาย</b> (น้ำราว ${(d / 100).toFixed(2)} ม.)`;
   else if (d >= 10) msg = `<br><span style="color:#8fb4ff">รถช้าลง มีน้ำบนถนน</span> (น้ำราว ${(d / 100).toFixed(2)} ม.)`;
-  return { html: `<b>${r.name[e] || r.kinds[r.kind[e]]}</b><br>ความเร็วเฉลี่ย 5 นาที: ${v ? v + ' กม./ชม.' : 'ไม่มีรถผ่าน'}` +
-    `<br>รถบนถนนเฉลี่ย: ${c} คัน · ยาว ${Math.round(r.length[e])} ม.${msg}` };
+  return `<b>${R.names[R.name[e]] || R.kinds[R.kind[e]]}</b><br>ความเร็วเฉลี่ย 5 นาที: ${v ? v + ' กม./ชม.' : 'ไม่มีรถผ่าน'}` +
+    `<br>รถบนถนนเฉลี่ย: ${c} คัน · ยาว ${Math.round(R.len[e] / 10)} ม.${msg}`;
 }
+function pick(pt) {
+  if (!S.run) return null;
+  const r = SMALL ? 10 : 4, box = [[pt.x - r, pt.y - r], [pt.x + r, pt.y + r]];
+  const layers = ['rain', 'news', 'roads-main', 'roads-minor'].filter(l => map.getLayer(l) && map.getLayoutProperty(l, 'visibility') !== 'none');
+  const fs = map.queryRenderedFeatures(box, { layers });
+  for (const l of layers) { const f = fs.find(x => x.layer.id === l); if (f) return f; }
+  return null;
+}
+function showTip(e) {
+  const f = pick(e.point), tip = $('tip');
+  const hid = f && f.source === 'roads' ? f.id : null;
+  if (S.hover !== hid) {
+    if (S.hover) map.setFeatureState({ source: 'roads', id: S.hover }, { h: false });
+    if (hid) map.setFeatureState({ source: 'roads', id: hid }, { h: true });
+    S.hover = hid;
+  }
+  if (!f) { tip.hidden = true; map.getCanvas().style.cursor = ''; return; }
+  map.getCanvas().style.cursor = 'pointer';
+  tip.innerHTML = tooltip(f); tip.hidden = false;
+  const x = Math.min(e.point.x + 14, innerWidth - tip.offsetWidth - 8), y = Math.min(e.point.y + 14, innerHeight - tip.offsetHeight - 8);
+  tip.style.left = `${x}px`; tip.style.top = `${y}px`;
+}
+map.on('mousemove', showTip);
+map.on('click', showTip);
+map.on('mouseout', () => { $('tip').hidden = true; });
+map.on('movestart', () => { if (SMALL) $('tip').hidden = true; });
 
-const deckgl = new deck.DeckGL({ container: 'map', views: new deck.MapView({ repeat: false }),
-  initialViewState: S.view, controller: true, getTooltip: tooltip,
-  onViewStateChange: ({ viewState }) => {  // returned view state wins: the camera cannot leave the island area
-    const c = (v, [a, b]) => Math.min(b, Math.max(a, v));
-    S.view = { ...viewState, longitude: c(viewState.longitude, LIMIT.lon), latitude: c(viewState.latitude, LIMIT.lat),
-               zoom: c(viewState.zoom, [LIMIT.minZoom, LIMIT.maxZoom]) };
-    return S.view;
-  }, onAfterRender: placeLabels });
-
-function placeLabels() {  // HTML labels: deck.gl text does not shape Thai vowels and tone marks
-  const vp = deckgl.getViewports()[0], box = $('labels');
-  if (!vp || !S.base) return;
-  S.base.places.forEach((p, i) => {
-    const [x, y] = vp.project([p.lon, p.lat, 0]), el = box.children[i];
-    el.style.left = `${x}px`; el.style.top = `${y}px`;
+// place names follow the camera: one transform per label on 'move' (10 labels, no layout reads)
+function placeLabels() {
+  const box = $('labels');
+  if (!S.land || !box.children.length) return;
+  const W = innerWidth, H = innerHeight;
+  S.land.places.forEach((p, i) => {
+    const { x, y } = map.project([p.lon, p.lat]), el = box.children[i];
+    const off = x < -80 || y < -20 || x > W + 80 || y > H + 20;
+    el.classList.toggle('off', off);
+    if (!off) el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`;
   });
+}
+map.on('move', placeLabels);
+map.on('moveend', placeLabels);
+map.on('idle', placeLabels);  // after terrain tiles arrive the ground height under a label can change
+addEventListener('resize', placeLabels);
+
+// while the user drags, zooms or rotates: rain hidden and dots frozen, so the map only draws what moves under the finger
+map.on('movestart', e => { if (e.originalEvent) S.drag = true; });
+map.on('moveend', () => { S.drag = false; });
+
+// ---- adaptive quality: watch the frame rate only while the map is busy; step down once it stays low ----
+const QMUL = [1, 0.5, 0.25];  // rain drops per quality level
+function setQuality(q) {
+  S.q = q;
+  map.setPixelRatio(Math.min(devicePixelRatio || 1, q >= 2 ? 1 : q >= 1 ? 1.5 : 2));  // 1: fog off, pixel ratio 1.5
+  applySky();
+  render();  // 2: also hillshade off, pixel ratio 1
+}
+function watchQuality(dt) {
+  const busy = map.isMoving() || fx.wn > 0 || ($('lCars').checked && S.dots && S.dots.m) || S.playing;
+  if (!busy || dt <= 0 || dt > 0.5) return;
+  S.qT = (S.qT || 0) + dt; S.qN = (S.qN || 0) + 1;
+  if (S.qT < 2) return;
+  S.fps = S.qN / S.qT; S.qT = S.qN = 0;
+  if (FORCE_Q != null) return;
+  S.low = S.fps < 28 ? (S.low || 0) + 1 : 0;
+  if (S.low >= 2 && S.q < 2) { S.low = 0; setQuality(S.q + 1); }
 }
 
 function tick(now) {
-  if (S.dots) {
-    const dt = S.last ? (now - S.last) / 1000 : 0;
-    S.last = now;
-    S.simT += dt * ANIM_SIM_S;
-    if (S.playing) {
-      S.acc = (S.acc || 0) + dt * 1000;
-      if (S.acc >= S.frameMs) { S.acc = 0; S.frame = (S.frame + 1) % S.run.f; frameChanged(); }
-    }
-    if ($('lCars').checked) { placeDots(); render(); }
+  const dt = S.last ? (now - S.last) / 1000 : 0;
+  S.last = now;
+  watchQuality(dt);
+  if (!S.drag) S.simT += dt * ANIM_SIM_S;
+  if (S.playing && S.run) {
+    S.acc = (S.acc || 0) + dt * 1000;
+    if (S.acc >= S.frameMs) { S.acc = 0; S.frame = (S.frame + 1) % S.run.f; frameChanged(); }
   }
+  // the map is only redrawn every frame while something moves on it (dots or 3D rain); otherwise it idles
+  if (($('lCars').checked && S.dots && S.dots.m) || fx.wn) map.triggerRepaint();
   requestAnimationFrame(tick);
 }
+requestAnimationFrame(rainFx);
 
-load().catch(err => { $('loading').textContent = 'โหลดข้อมูลไม่ได้: ' + err.message + ' (รัน scripts/export_web.py และเปิดผ่าน http.server)'; });
+// debug only, localhost only: ?wxsheet shows every weather icon of the live tab in one labelled grid
+function wxSheet() {
+  const E = [
+    [['sun'], 'ท้องฟ้าแจ่มใส', 'code 0–1 · กลางวัน · ไม่มีฝนที่สถานี'],
+    [['moon'], 'ท้องฟ้าโปร่ง (กลางคืน)', 'code 0–1 · กลางคืน · ไม่มีฝนที่สถานี'],
+    [['sky_d', 'pccloud'], 'มีเมฆบางส่วน', 'code 2 · กลางวัน'],
+    [['sky_n', 'pccloud'], 'มีเมฆบางส่วน', 'code 2 · กลางคืน'],
+    [['sky_d', 'bigcloud'], 'มีเมฆมาก', 'code 3, 51–67, 80–82 (สถานีไม่มีฝน) · กลางวัน'],
+    [['sky_n', 'bigcloud'], 'มีเมฆมาก', 'code 3, 51–67, 80–82 (สถานีไม่มีฝน) · กลางคืน'],
+    [['fog'], 'หมอก', 'code 45, 48'],
+    [['cloud', 'bolt'], 'มีเมฆฝนฟ้าคะนอง (สถานีวัดยังไม่มีฝน)', 'code 95–99 · สถานีไม่มีฝน'],
+    [['cloud', 'drizzle'], 'ฝนเล็กน้อย', 'สถานีวัด 0.1–2.53 มม./ชม. · code < 95'],
+    [['cloud', 'rain'], 'ฝนปานกลาง', 'สถานีวัด 2.54–6.34 มม./ชม. · code < 95'],
+    [['cloud', 'heavy'], 'ฝนหนัก', 'สถานีวัด ≥ 6.35 มม./ชม. · code < 95'],
+    [['cloud', 'bolt', 'rain'], 'ฝนฟ้าคะนอง (ฝนเล็กน้อย/ปานกลาง)', 'code 95–99 · สถานีมีฝน < 6.35 มม.'],
+    [['cloud', 'bolt', 'heavy'], 'ฝนฟ้าคะนอง (ฝนหนัก)', 'code 95–99 · สถานีวัด ≥ 6.35 มม.'],
+  ];
+  const d = document.createElement('div');
+  d.id = 'wxsheet';
+  d.style.cssText = 'position:fixed;inset:0;z-index:1000;background:#0b121e;padding:24px;display:grid;' +
+    'grid-template-columns:repeat(5,1fr);gap:18px 14px;align-content:start;overflow:auto';
+  d.innerHTML = '<div style="grid-column:1/-1;color:#f4f9ff;font-size:18px;font-weight:600">ไอคอนสภาพอากาศ (แท็บสถานการณ์ปัจจุบัน)' +
+    '<div style="font-size:12px;color:#8096b0;font-weight:400">ฝนตัดสินจากสถานีวัด ThaiWater · ท้องฟ้า กลางวัน/กลางคืน จาก Open-Meteo (weather_code, is_day)</div></div>' +
+    E.map(([p, t, c]) => `<div style="text-align:center"><div id="liveIcon" style="width:96px;height:96px;margin:0 auto">${wxSvg(p, t)}</div>` +
+      `<div style="color:#e2edf8;font-size:13px;margin-top:6px">${t}</div><div style="color:#8096b0;font-size:11px">${c}</div></div>`).join('') +
+    '<div style="grid-column:1/-1;color:#8096b0;font-size:12px;margin-top:4px">ขนาดจริงในแผง (36 px): ' +
+    E.map(([p, t]) => `<span class="real" style="display:inline-block;width:36px;height:36px;margin:0 6px;vertical-align:middle">${wxSvg(p, t)}</span>`).join('') + '</div>';
+  document.body.appendChild(d);
+  d.querySelectorAll('svg').forEach(s => { const z = s.closest('.real') ? '36px' : '96px'; s.style.width = z; s.style.height = z; });
+  document.body.dataset.ready = '1';
+}
+if (LOCALHOST && Q.has('wxsheet')) wxSheet(); else load().catch(err => { $('loading').textContent = 'โหลดข้อมูลไม่ได้: ' + err.message + ' (รัน scripts/pack_web_data.py และเปิดผ่าน http.server)';
+  if (Q.has('debug')) $('perf').textContent += 'ERR ' + err.stack; });
 </script>
 </body>
 </html>
