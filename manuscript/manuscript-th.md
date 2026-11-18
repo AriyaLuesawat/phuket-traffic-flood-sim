@@ -17,7 +17,7 @@
 
 ฝนลดความเร็วและความจุของถนน และน้ำที่ขังบนผิวถนนทำให้รถต้องลดความเร็วหรือเลี่ยงเส้นทาง (Federal Highway Administration [FHWA], 2013; Pregnolato et al., 2017) ในประเทศไทย Takano et al. (2023) วิเคราะห์ข้อมูลรถ probe ของกรุงเทพฯ ปี 2018–2020 พบว่าฝน 10 มม./ชม. ลดความเร็วเดินทางในพื้นที่เฉลี่ยราว 10.3% และถ้ามีฝนสะสม 10 มม. ใน 5 ชั่วโมงก่อนหน้าจะลดราว 20.7% โดยผลสูงกว่าในช่วงเร่งด่วนและพื้นที่ต่ำ
 
-ภูเก็ตเป็นเกาะที่มีถนนสายหลักไม่กี่สายเชื่อมพื้นที่ต่าง ๆ และมีฝนตกหนักในฤดูมรสุม ช่วงวันที่ 26–29 ตุลาคม 2569 ข้อมูล ERA5 ให้ฝนรวม 278 มม. ใน 78 ชั่วโมง และข่าววันที่ 29 ตุลาคม 2569 รายงานถนนที่น้ำท่วมหลายจุดทั่วเกาะ (กรุงเทพธุรกิจ, 2569; ไทยโพสต์, 2569) น้ำท่วมลักษณะนี้มักขังไม่กี่ชั่วโมง ปภ.ภูเก็ตรายงานว่าเวลา 10:00 น. ของวันเดียวกัน น้ำในหลายพื้นที่กลับเป็นปกติ (Spacebar, 2569) จึงไม่มีการปิดถนน แต่รถช้าลงและต้องเลี่ยงเส้นทาง
+ภูเก็ตเป็นเกาะที่มีถนนสายหลักไม่กี่สายเชื่อมพื้นที่ต่าง ๆ และมีฝนตกหนักในฤดูมรสุม ช่วงวันที่ 26–29 ตุลาคม 2569 ข้อมูล ERA5 ให้ฝนรวม 278 มม. ใน 78 ชั่วโมง และข่าววันที่ 29 ตุลาคม 2569 รายงานถนนที่น้ำท่วมหลายจุดทั่วเกาะ (กรุงเทพธุรกิจ, 2569; ไทยโพสต์, 2569) น้ำท่วมลักษณะนี้มักขังไม่กี่ชั่วโมง ข่าวรายงานว่าเวลา 10.00 น. ของวันเดียวกัน น้ำในหลายพื้นที่ลดลงและกลับเป็นปกติ (Spacebar, 2569) จึงไม่มีการปิดถนน แต่รถช้าลงและต้องเลี่ยงเส้นทาง
 
 ภูเก็ตยังขาดข้อมูลหลายอย่างที่ต้องใช้ประเมินผลนี้โดยตรง ไม่มีปริมาณรถรายชั่วโมงสาธารณะ ไม่มีข้อมูลความเร็วรถในวันฝนตก และไม่มีข้อมูลท่อระบายน้ำ งานนี้จึงสร้างแบบจำลองจากข้อมูลเปิดและค่าจากงานวิจัย โดยมีวัตถุประสงค์ 3 ข้อ
 
@@ -41,7 +41,7 @@ Pregnolato et al. (2017) ชี้ว่าวิธีประเมินผ�
 
 ### 2.3 การจำลองน้ำท่วมจากข้อมูลความสูงพื้นที่
 
-Bates et al. (2010) เสนอสมการน้ำตื้น 2 มิติแบบ local inertial ที่คำนวณได้เร็วพอสำหรับพื้นที่ขนาดใหญ่ การซึมลงดินประมาณได้ด้วยวิธี SCS curve number (United States Department of Agriculture [USDA], 1986) ข้อมูลความสูงพื้นที่ระดับโลกขนาด 30 ม. เช่น Copernicus DEM (European Space Agency, 2022) เป็นแบบจำลองพื้นผิว (DSM) ที่รวมความสูงของอาคารและต้นไม้ FABDEM (Hawker et al., 2022) ลบอาคารและต้นไม้ออกด้วยการเรียนรู้ของเครื่อง จึงเหมาะกว่าสำหรับการไหลของน้ำ แอ่งเทียมใน DEM จัดการได้ด้วยวิธีเติมแอ่ง (Barnes et al., 2014; Soille, 2004)
+Bates et al. (2010) เสนอสมการน้ำตื้น 2 มิติแบบ local inertial ที่คำนวณได้เร็วพอสำหรับพื้นที่ขนาดใหญ่ การซึมลงดินประมาณได้ด้วยวิธี SCS curve number (United States Department of Agriculture [USDA], 1986) ข้อมูลความสูงพื้นที่ระดับโลกขนาด 30 ม. เช่น Copernicus DEM (European Space Agency & Airbus, 2022) เป็นแบบจำลองพื้นผิว (DSM) ที่รวมความสูงของอาคารและต้นไม้ FABDEM (Hawker et al., 2022) ลบอาคารและต้นไม้ออกด้วยการเรียนรู้ของเครื่อง จึงเหมาะกว่าสำหรับการไหลของน้ำ แอ่งเทียมใน DEM จัดการได้ด้วยวิธีเติมแอ่ง (Barnes et al., 2014; Soille, 2004)
 
 ### 2.4 การจำลองการจราจรด้วย SUMO
 
@@ -70,11 +70,11 @@ SUMO เป็นโปรแกรมจำลองการจราจรแ
 | ถนนและอาคาร | OpenStreetMap contributors (2026) ไฟล์ Geofabrik ณ 1 พ.ย. 2569 | จำนวนช่องและความเร็วจำกัดไม่ครบทุกเส้น |
 | ปริมาณรถรายปี ทางหลวงแผ่นดิน | กรมทางหลวง (2563) ปี 2562 | ใช้ปีก่อนโควิด-19 |
 | ปริมาณรถรายปี ทางหลวงชนบท | กรมทางหลวงชนบท (2569) ปี 2569 | 19 สายในภูเก็ต |
-| ฝนรายชั่วโมง | ERA5 (Hersbach et al., 2020) ผ่าน Open-Meteo (n.d.) ปี 2000–2026 | กริดราว 25 กม. ความเข้มสูงสุดต่ำกว่าสถานีวัด |
+| ฝนรายชั่วโมง | ERA5 (Hersbach et al., 2020) ผ่าน Open-Meteo (Zippenfenig, 2023) ปี 2000–2026 | กริดราว 25 กม. ความเข้มสูงสุดต่ำกว่าสถานีวัด |
 | เกณฑ์ฝนรายวัน | กรมอุตุนิยมวิทยา อ้างใน สำนักงานสถิติแห่งชาติ (2567) | ใช้ตั้งชื่อสถานการณ์ |
 | ความสูงพื้นที่ 30 ม. | FABDEM V1-2 (Hawker et al., 2022) | เทียบกับ Copernicus DEM GLO-30 |
 | การใช้ที่ดิน 10 ม. | ESA WorldCover 2021 v200 (Zanaga et al., 2022) | |
-| จุดน้ำท่วม 29 ต.ค. 2569 | ข่าว (กรุงเทพธุรกิจ, 2569; ไทยโพสต์, 2569; Thai PBS, [ปี]) | 14 จุดที่หาพิกัดได้จากชื่อสถานที่ ไม่มีความลึกที่วัดได้ |
+| จุดน้ำท่วม 29 ต.ค. 2569 | ข่าว (กรุงเทพธุรกิจ, 2569; ไทยโพสต์, 2569; สยามรัฐ, 2569; Spacebar, 2569; TNews, 2569) | 14 จุดที่หาพิกัดได้จากชื่อสถานที่ ไม่มีความลึกที่วัดได้ |
 
 ข้อมูลที่ไม่มีและต้องใช้ค่าประมาณแทน ได้แก่ ปริมาณรถรายชั่วโมงของภูเก็ต ปริมาณรถบนถนนในเขตเมืองที่ไม่มีจุดนับ ความเร็วรถจริง และท่อระบายน้ำและสถานีสูบน้ำ
 
@@ -109,7 +109,7 @@ SUMO เป็นโปรแกรมจำลองการจราจรแ
 
 **ช่วงเวลา:** 6 ช่วง ชั่วโมงศึกษาเริ่ม 03:00, 08:00, 10:00, 12:00, 17:00 และ 20:00 น. อุ่นเครื่อง 30 นาทีก่อนชั่วโมงศึกษา
 
-**เกณฑ์:** GEH = √(2(M − C)² / (M + C)) เมื่อ M คือปริมาณรถจำลองและ C คือค่าเป้าหมายต่อชั่วโมง ผ่านเมื่อ GEH < 5 ในมากกว่า 85% ของจุดนับ (Department for Transport, 2024, ตาราง 2)
+**เกณฑ์:** GEH = √(2(M − C)² / (M + C)) เมื่อ M คือปริมาณรถจำลองและ C คือค่าเป้าหมายต่อชั่วโมง ผ่านเมื่อ GEH < 5 ในมากกว่า 85% ของจุดนับ (Department for Transport, 2026, ตาราง 2)
 
 ### 3.5 ผลของฝน
 
@@ -347,17 +347,17 @@ SUMO เป็นโปรแกรมจำลองการจราจรแ
 
 ## เอกสารอ้างอิง
 
-กรมทางหลวง. (2563). *ปริมาณการเดินทางบนทางหลวง ปี 2562* [ชุดข้อมูล]. ศูนย์กลางข้อมูลเปิดกระทรวงคมนาคม. https://datagov.mot.go.th/dataset/aadt
+กรมทางหลวง. (2563). *ปริมาณจราจรบนทางหลวง ปี 2562* [ชุดข้อมูล]. ศูนย์กลางข้อมูลเปิดภาครัฐ. https://data.go.th/dataset/highwaystraffic2562
 
 กรมทางหลวงชนบท. (2569). *สถิติปริมาณจราจร ปี 2569* [ชุดข้อมูล]. ศูนย์กลางข้อมูลเปิดกระทรวงคมนาคม. https://datagov.mot.go.th/dataset/aadt1
 
-กรุงเทพธุรกิจ. (2569, 29 ตุลาคม). [ชื่อข่าว]. https://www.bangkokbiznews.com/news/1258382
+กรุงเทพธุรกิจ. (2569, 29 ตุลาคม). *น้ำท่วมภูเก็ตล่าสุด ฝนตกหนัก 70% 'ถนนโคกโตนด-หน้าวัดใต้' ผ่านไม่ได้*. https://www.bangkokbiznews.com/news/1258382
 
-กรุงเทพธุรกิจ. (2569, 29 ตุลาคม). [ชื่อข่าว]. https://www.bangkokbiznews.com/news/1258282
-
-ไทยโพสต์. (2569, 29 ตุลาคม). [ชื่อข่าว]. https://www.thaipost.net/district-news/1097443/
+ไทยโพสต์. (2569, 29 ตุลาคม). *ฝนถล่มภูเก็ต น้ำท่วมสูงหลายจุด เทศบาลประกาศเตือนภัย 'ธงแดง' ยกของขึ้นที่สูง*. https://www.thaipost.net/district-news/1097443/
 
 สำนักงานสถิติแห่งชาติ. (2567). *Statistical yearbook Thailand 2024*. https://nso.go.th/public/e-book/Statistical-Yearbook/SYB-2024/619
+
+สยามรัฐ. (2569, 29 ตุลาคม). *ภูเก็ตฝนถล่มต่อเนื่อง น้ำท่วมหลายจุด รถเล็กสัญจรลำบาก เทศบาลเตือนรหัสแดงริมคลองบางใหญ่*. https://siamrath.co.th/regional/332013
 
 Álvarez López, P., Behrisch, M., Bieker-Walz, L., Erdmann, J., Flötteröd, Y.-P., Hilbrich, R., Lücken, L., Rummel, J., Wagner, P., & Wießner, E. (2018). Microscopic traffic simulation using SUMO. In *2018 21st International Conference on Intelligent Transportation Systems (ITSC)* (pp. 2575–2582). IEEE. https://doi.org/10.1109/ITSC.2018.8569938
 
@@ -365,11 +365,11 @@ Barnes, R., Lehman, C., & Mulla, D. (2014). Priority-flood: An optimal depressio
 
 Bates, P. D., Horritt, M. S., & Fewtrell, T. J. (2010). A simple inertial formulation of the shallow water equations for efficient two-dimensional flood inundation modelling. *Journal of Hydrology, 387*(1–2), 33–45. https://doi.org/10.1016/j.jhydrol.2010.03.027
 
-Department for Transport. (2024). *TAG unit M3.1: Highway assignment modelling*. GOV.UK. https://www.gov.uk/government/publications/tag-unit-m3-1-highway-assignment-modelling
+Department for Transport. (2026). *TAG unit M3.1: Highway assignment modelling* (May 2026 version). GOV.UK. https://www.gov.uk/government/publications/tag-unit-m3-1-highway-assignment-modelling
 
 Eissfeldt, N. G. (2004). *Vehicle-based modelling of traffic: Theory and application to environmental impact modelling* [Doctoral dissertation, Universität zu Köln]. https://kups.ub.uni-koeln.de/1274/
 
-European Space Agency. (2022). *Copernicus DEM* [Data set]. https://doi.org/10.5270/ESA-c5d3d65
+European Space Agency, & Airbus. (2022). *Copernicus DEM* [Data set]. https://doi.org/10.5270/ESA-c5d3d65
 
 Federal Highway Administration. (2013). *Guide for highway capacity and operations analysis of active transportation and demand management strategies* (FHWA-HOP-13-042), Appendix A. https://ops.fhwa.dot.gov/publications/fhwahop13042/appa.htm
 
@@ -379,24 +379,22 @@ Hersbach, H., Bell, B., Berrisford, P., Hirahara, S., Horányi, A., Muñoz-Sabat
 
 Ni, Y.-C., Akopian, A., Kouvelas, A., & Makridis, M. A. (2026). *Revisiting mesoscopic traffic flow simulation in SUMO: Limitations, analysis, and an alternative* [Preprint]. arXiv. https://arxiv.org/abs/2606.09282
 
-Open-Meteo. (n.d.). *Historical weather API*. https://open-meteo.com/en/docs/historical-weather-api
-
 OpenStreetMap contributors. (2026). *OpenStreetMap* [Data set, Geofabrik extract of 1 November 2026]. https://www.openstreetmap.org
 
 Pregnolato, M., Ford, A., Wilkinson, S. M., & Dawson, R. J. (2017). The impact of flooding on road transport: A depth-disruption function. *Transportation Research Part D: Transport and Environment, 55*, 67–81. https://doi.org/10.1016/j.trd.2017.06.020
 
 Soille, P. (2004). Optimal removal of spurious pits in grid digital elevation models. *Water Resources Research, 40*(12), W12509. https://doi.org/10.1029/2004WR003060
 
-Spacebar. (2569, 29 ตุลาคม). [ชื่อข่าว]. https://spacebar.th/social/phuket-remains-in-a-critical-situation-with-accumulated-rainfall-causing-high-flood-levels-in-many-areas
+Spacebar. (2569, 29 ตุลาคม). *ภูเก็ตวิกฤต! ฝนสะสมตกแช่นาน 2 วัน น้ำท่วมหลายจุด เทศบาลเตือน "ธงแดง" คลองหลักรับมือระดับน้ำเพิ่มสูงขึ้น*. https://spacebar.th/social/phuket-remains-in-a-critical-situation-with-accumulated-rainfall-causing-high-flood-levels-in-many-areas
 
 Takano, T., Morita, H., Napaporn, P., Vichiensan, V., & Nakamura, S. (2023). Statistical analysis of rainfall impacts on urban traffic in Bangkok, Thailand. *Hydrological Research Letters, 17*(4), 85–91. https://doi.org/10.3178/hrl.17.85
 
-Thai PBS. ([ปี]). [ชื่อข่าว]. https://www.thaipbs.or.th/news/content/341541
+TNews. (2569, 29 ตุลาคม). *ฝนถล่ม ภูเก็ตเช้านี้น้ำท่วมหลายจุด กระทบการจราจรหลายเส้น*. https://www.tnews.co.th/social/social-news/662496
 
-Transportation Research Board. (2010). *Highway capacity manual 2010*. [อ้างผ่าน FHWA (2013) เพราะยังไม่ได้เปิดต้นฉบับ]
+United States Department of Agriculture, Soil Conservation Service. (1986). *Urban hydrology for small watersheds* (Technical Release 55, 2nd ed.). U.S. Government Publishing Office. https://www.govinfo.gov/content/pkg/CZIC-gb980-u73-1986/pdf/CZIC-gb980-u73-1986.pdf
 
-United States Department of Agriculture, Natural Resources Conservation Service. (1986). *Urban hydrology for small watersheds* (Technical Release 55, 2nd ed.).
+U.S. Army Corps of Engineers, Hydrologic Engineering Center. (n.d.). *HEC-RAS 2D user's manual (Version 6.6): Creating land cover, Manning's n values, and % impervious layers*. Retrieved November 18, 2026, from https://www.hec.usace.army.mil/confluence/rasdocs/r2dum/6.6/developing-a-terrain-model-and-geospatial-layers/creating-land-cover-mannings-n-values-and-impervious-layers
 
-U.S. Army Corps of Engineers, Hydrologic Engineering Center. (n.d.). *HEC-RAS 2D user's manual: Creating land cover, Manning's n values, and impervious layers*. https://www.hec.usace.army.mil/confluence/rasdocs/r2dum/latest/developing-a-terrain-model-and-geospatial-layers/creating-land-cover-mannings-n-values-and-impervious-layers
+Zanaga, D., Van De Kerchove, R., Daems, D., De Keersmaecker, W., Brockmann, C., Kirches, G., Wevers, J., Cartus, O., Santoro, M., Fritz, S., Lesiv, M., Herold, M., Tsendbazar, N.-E., Xu, P., Ramoino, F., & Arino, O. (2022). *ESA WorldCover 10 m 2021 v200* [Data set]. Zenodo. https://doi.org/10.5281/zenodo.7254221
 
-Zanaga, D., Van De Kerchove, R., Daems, D., De Keersmaecker, W., Brockmann, C., Kirches, G., … Arino, O. (2022). *ESA WorldCover 10 m 2021 v200* [Data set]. Zenodo. https://doi.org/10.5281/zenodo.7254221
+Zippenfenig, P. (2023). *Open-Meteo.com weather API* [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.7970649
