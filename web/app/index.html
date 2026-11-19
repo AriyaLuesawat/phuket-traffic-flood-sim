@@ -125,16 +125,17 @@
   #clock { font-weight: 600; min-width: 150px; color: #fff; font-variant-numeric: tabular-nums; }
   #slider { flex: 1; accent-color: var(--accent); min-width: 120px; }
   #range { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
-  #viewbox { top: 14px; right: 14px; padding: 8px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; width: 160px; }
+  #viewbox { top: 14px; right: 14px; padding: 8px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; width: 200px; }
   #viewbox .seg { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); background: rgba(7, 12, 22, 0.65); }
   #viewbox .seg button { flex: 1; border: none; border-radius: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 5px 6px; }
   #viewbox .seg button.on { background: rgba(56, 189, 248, 0.2); color: #fff; }
   #viewbox > button { font-size: 12px; padding: 5px 6px; }
   #viewbox .reset { display: flex; gap: 6px; }
-  .reset { display: flex; justify-content: center; }
+  /* compass and "my location" share one row */
+  #locBtn { flex: 1; min-width: 0; height: 34px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px; }
   #compass { width: 44px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center; }
   #compass svg { width: 22px; height: 22px; flex: none; transition: transform 0.08s linear; }
-  @media (pointer: coarse) { #compass { width: 48px; height: 44px; } }
+  @media (pointer: coarse) { #compass { width: 48px; height: 44px; } #locBtn { height: 44px; } }
   /* live tab: no time bar; what sat above it moves down */
   #time[hidden] { display: none; }
   body.live #askLoc, body.live #satNote { bottom: 30px; }
@@ -170,7 +171,7 @@
   #me .bar i { display: block; height: 100%; }
   #perf { display: none; }
   @media (max-width: 640px) {
-    #viewbox { top: auto; bottom: 186px; right: 16px; width: 136px; }
+    #viewbox { top: auto; bottom: 186px; right: 16px; width: 204px; }
     #ctl { max-height: 45vh; width: auto; left: 16px; right: 16px; max-width: none; }
     #time { left: 16px; right: 16px; bottom: 38px; padding: 8px 12px; }
     #clock { min-width: 0; }
@@ -283,9 +284,9 @@
     <button id="compass" title="กด 1 ครั้ง: หันทิศเหนือ · กดอีกครั้ง: กลับมุมมองเริ่มต้น" aria-label="หันทิศเหนือ กดอีกครั้งเพื่อกลับมุมมองเริ่มต้น">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L16 12 L12 10.5 L8 12 Z" fill="#f87171"/>
         <path d="M12 22 L8 12 L12 13.5 L16 12 Z" fill="#cbd5e1"/></svg></button>
+    <button id="locBtn" title="ตำแหน่งของฉัน">📍 ตำแหน่งของฉัน</button>
   </div>
   <div class="seg" role="group" aria-label="ภาพพื้นหลัง"><button id="bMap" class="on">แผนที่</button><button id="bSat">ดาวเทียม</button></div>
-  <button id="locBtn" title="ตำแหน่งของฉัน">📍 ตำแหน่งของฉัน</button>
   <button id="layersBtn" aria-expanded="false" aria-controls="layers" title="เลือกชั้นข้อมูล">ชั้นข้อมูล ▾</button>
   <div id="layers" class="tags" hidden>
     <label><input type="checkbox" id="lRoads" checked> ถนน</label>
