@@ -64,11 +64,21 @@
 - ✅ Venkatesh, V., Morris, M. G., Davis, G. B., & Davis, F. D. (2003). User acceptance of information technology: Toward a unified view. *MIS Quarterly, 27*(3), 425–478. https://doi.org/10.2307/30036540 — ตอนที่ 1 (อายุและประสบการณ์เป็นตัวแปรกำกับ)
 - ตอนที่ 6 (ความรู้ในพื้นที่) ผู้วิจัยพัฒนาเอง ไม่มีอ้างอิง ต้องระบุใน paper
 
+- 🔍 Lewis, J. R., & Sauro, J. (2018). Item benchmarks for the System Usability Scale. *Journal of Usability Studies, 13*(3), 158–167. https://dl.acm.org/doi/10.5555/3294033.3294037 — ค่ากลาง SUS = 68 (H1) · ผู้แต่ง ชื่อเรื่อง วารสาร เล่ม หน้า ยืนยันจาก Semantic Scholar API · ค่า 68 ยืนยันได้จากแหล่งที่อ้างต่อเท่านั้น (ลิงก์ PDF เดิมของวารสาร uxpajournal.org ตอบ 404 เมื่อ 24 พ.ย. 2569) ต้องเปิดฉบับเต็มก่อนส่ง
+- ✅ Krejcie, R. V., & Morgan, D. W. (1970). Determining sample size for research activities. *Educational and Psychological Measurement, 30*(3), 607–610. https://doi.org/10.1177/001316447003000308 — ขนาดตัวอย่าง 384 คน (ยืนยันข้อมูลบรรณานุกรมจาก Crossref)
+
 ## 8. ความตรงและความเชื่อมั่นของแบบสอบถาม (แล็บ jamovi)
 
 - 🔍 Rovinelli, R. J., & Hambleton, R. K. (1977). On the use of content specialists in the assessment of criterion-referenced test item validity. *Dutch Journal of Educational Research, 2*, 49–60. — ดัชนี IOC · ยืนยันได้จากรายการอ้างอิงของบทความอื่นเท่านั้น บางแหล่งระบุปี 1976 (ฉบับเสนอในที่ประชุม)
 - ✅ Cronbach, L. J. (1951). Coefficient alpha and the internal structure of tests. *Psychometrika, 16*(3), 297–334. https://doi.org/10.1007/BF02310555 — Cronbach's α
 - 🔍 George, D., & Mallery, P. (2003). *SPSS for Windows step by step: A simple guide and reference, 11.0 update* (4th ed.). Allyn & Bacon. — เกณฑ์แปลผล α (> .9 ดีมาก … < .5 ใช้ไม่ได้) · ยืนยันได้จากแหล่งที่อ้างต่อ เช่น Indiana University Knowledge Base ยังไม่ได้เห็นหน้าในหนังสือ
+
+## 8b. งานที่เกี่ยวข้อง (หัวข้อ 2.6 ค้นเมื่อ 24 พ.ย. 2569)
+
+- ✅ Juajamsai, K., Vithean, K., Champeecharoensuk, T., Tanapatpisan, P., Chollacoop, N., Marome, W., & Silva, K. (2026). Quantifying impact of rainfall on road traffic: A case study of Highway 4024 in Phuket. *Asia-Pacific Journal of Science and Technology, 31*(5). https://doi.org/10.22299/apst.2026.285629 — ตรวจจากหน้าบทความ ThaiJO · ความเร็ว 15.39 → 13.91 กม./ชม. (−9.64%) LOS F ทั้งสองวัน · ยังไม่รู้เลขบทความ (หน้า ThaiJO พิมพ์ "APST–31")
+- ✅ Li, M., Huang, Q., Wang, L., Yin, J., & Wang, J. (2018). Modeling the traffic disruption caused by pluvial flash flood on intra-urban road network. *Transactions in GIS, 22*(1), 311–322. https://doi.org/10.1111/tgis.12311 — ตรวจจากหน้า LSU repository · ความล่าช้า 0.5–8 เท่า รถย้ายไปถนนแห้ง 1–7%
+- 🔍 Pyatkova, K., Chen, A. S., Djordjević, S., Butler, D., Vojinović, Z., Abebe, Y. A., & Hammond, M. (2018). Flood impacts on road transportation using microscopic traffic modelling techniques. In *Simulating urban traffic scenarios* (pp. 115–126). Springer. https://doi.org/10.1007/978-3-319-33616-9_8 — บรรณานุกรมจาก Crossref (ไม่มีชื่อบรรณาธิการ ต้องเติมก่อนส่ง) · เนื้อหา "เชื่อมแบบจำลองน้ำท่วมกับ SUMO" มาจากบทคัดย่อที่เห็นผ่านผลค้น หน้า Exeter ตอบ 403
+- ✅ Wongchavalidkul, N., & Siewwuttanagul, S. (2021). Experiences of using opensource transport and traffic simulation software for transport and traffic studies in Thailand. *International Scientific Journal of Engineering and Technology, 5*(1), 11–19. https://ph02.tci-thaijo.org/index.php/isjet/article/view/241614 — ตรวจจากหน้าบทความ ThaiJO (ไม่มี DOI)
 
 ## 9. จุดน้ำท่วมที่ใช้ตรวจผล (ขั้น 6 และ 10)
 
