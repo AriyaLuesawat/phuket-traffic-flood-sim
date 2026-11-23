@@ -55,7 +55,7 @@ Network mean speed, change from a dry day (5 seeds):
 | [`config/`](config/) | Rain factors and the assumed hourly profile |
 | [`web/app/index.html`](web/app/index.html) | The viewer: MapLibre 3D, map and satellite looks, live rain and weather, location card (data: `scripts/export_web.py` then `scripts/pack_web_data.py`; see [`web/app/README.md`](web/app/README.md)) |
 | [`web/app-legacy/index.html`](web/app-legacy/index.html) | The first viewer (deck.gl, neon wireframe), kept for comparison |
-| `forms/`, `scripts/*survey*`, `scripts/*jamovi*` | A questionnaire for viewer users and analysis-practice scripts. **No real survey has been run; synthetic practice data is not included and is not used in the research.** |
+| `forms/`, `scripts/*survey*`, `scripts/*ioc*`, `scripts/*jamovi*`, `data/synthetic/` | The viewer-user questionnaire, its analysis (jamovi engine), and **simulated** answers: IOC from 3 simulated experts, a simulated try-out (n = 30) and a simulated main sample (n = 30). The COM-101 course allows simulated data for this part. **No real survey has been run; these are not answers from real people.** |
 
 ## Running it
 

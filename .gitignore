@@ -11,7 +11,8 @@ web/prototype/data/
 web/app/data/
 web/app/build_tmp/
 demand/
-data/synthetic/
+data/synthetic/*.xlsx
+data/synthetic/*.omv
 output-build.log
 web/app/data-c/
 web/app/config.local.js

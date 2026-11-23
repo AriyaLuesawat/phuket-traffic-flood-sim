@@ -1,22 +1,27 @@
 """Generates SYNTHETIC answers to the Phuket Native questionnaire for practising the analysis in jamovi.
 
-    .venv/bin/python scripts/make_synthetic_survey.py
+    .venv/bin/python scripts/make_synthetic_survey.py          # main sample, n = 30 (seed 2569)
+    .venv/bin/python scripts/make_synthetic_survey.py pilot    # try-out sample, n = 30 (seed 2570)
 
-NOT REAL DATA. Never report it as a pilot test or use it in the paper.
+NOT REAL DATA. The course (COM-101) allows simulated data for the project; every table and figure made from
+these files must say "ข้อมูลจำลอง" and must never be presented as answers from real people.
 
 Each simulated respondent has three correlated latent attitudes (usability, information quality, usefulness;
 r = 0.5). An item answer = 3 + loading x attitude + noise, rounded and clipped to 1-5. Negative SUS items
 (2, 4, 6, 8, 10) use the opposite sign, so they must be reverse scored before Cronbach's alpha.
 Continuance intention follows usefulness and usability. Demographic shares are guesses for a student sample.
 
-Output: data/synthetic/phuket-native-SYNTHETIC-n30.csv (and .xlsx)
+Output: data/synthetic/phuket-native-SYNTHETIC-n30.csv (pilot: phuket-native-SYNTHETIC-pilot-n30.csv), and .xlsx
 """
+import sys
 from pathlib import Path
 
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-N, SEED = 30, 2569
+KIND = sys.argv[1] if len(sys.argv) > 1 else 'main'
+assert KIND in ('main', 'pilot'), KIND
+N, SEED = 30, {'main': 2569, 'pilot': 2570}[KIND]
 rng = np.random.default_rng(SEED)
 
 cov = np.full((3, 3), 0.5) + 0.5 * np.eye(3)
@@ -51,9 +56,9 @@ for code in ['PU1', 'PU2', 'PU5', 'PU6']:
 for code in ['CI1', 'CI2']:
     cols[code] = item(cont, loading=0.8)
 cols['FloodMatch'] = pick(['ตรงเกือบทั้งหมด', 'ตรงบางส่วน', 'ไม่ค่อยตรง', 'ไม่ทราบ'], [0.2, 0.5, 0.15, 0.15])
-cols['DataType'] = np.array(['SYNTHETIC'] * N)
+cols['DataType'] = np.array(['SYNTHETIC' if KIND == 'main' else 'SYNTHETIC-PILOT'] * N)
 
-out = ROOT / 'data' / 'synthetic' / 'phuket-native-SYNTHETIC-n30.csv'
+out = ROOT / 'data' / 'synthetic' / ('phuket-native-SYNTHETIC-n30.csv' if KIND == 'main' else 'phuket-native-SYNTHETIC-pilot-n30.csv')
 header = list(cols)
 with open(out, 'w', encoding='utf-8-sig') as f:
     f.write(','.join(header) + '\n')

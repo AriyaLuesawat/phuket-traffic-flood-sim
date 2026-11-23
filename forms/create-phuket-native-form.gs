@@ -32,19 +32,19 @@ const SCALE_HELP = 'เลือก 1–5: 1 = ไม่เห็นด้วย
 const SUS_ITEMS = [
   ['SUS1', 'ฉันอยากใช้ Phuket Native เป็นประจำ', 'I think that I would like to use this system frequently.'],
   ['SUS2', 'Phuket Native ซับซ้อนเกินความจำเป็น', 'I found the system unnecessarily complex.'],
-  ['SUS3', 'Phuket Native ใช้งานง่าย', 'I thought the system was easy to use.'],
+  ['SUS3', 'ฉันคิดว่า Phuket Native ใช้งานง่าย', 'I thought the system was easy to use.'],
   ['SUS4', 'ฉันต้องมีคนที่เก่งคอมพิวเตอร์คอยช่วย จึงจะใช้ Phuket Native ได้', 'I think that I would need the support of a technical person to be able to use this system.'],
   ['SUS5', 'เมนูและฟังก์ชันต่าง ๆ ใน Phuket Native ทำงานต่อเนื่องกันดี', 'I found the various functions in this system were well integrated.'],
-  ['SUS6', 'หน้าจอแต่ละส่วนของ Phuket Native ไม่ไปในทางเดียวกัน ทำให้สับสน', 'I thought there was too much inconsistency in this system.'],
+  ['SUS6', 'ฉันคิดว่าส่วนต่าง ๆ ของ Phuket Native ไม่สอดคล้องกันมากเกินไป', 'I thought there was too much inconsistency in this system.'],
   ['SUS7', 'คนส่วนใหญ่น่าจะเรียนรู้วิธีใช้ Phuket Native ได้เร็ว', 'I would imagine that most people would learn to use this system very quickly.'],
-  ['SUS8', 'Phuket Native ใช้งานยุ่งยาก', 'I found the system very cumbersome to use.'],
+  ['SUS8', 'ฉันรู้สึกว่า Phuket Native ใช้งานยุ่งยากมาก', 'I found the system very cumbersome to use.'],
   ['SUS9', 'ฉันมั่นใจตอนใช้ Phuket Native', 'I felt very confident using the system.'],
   ['SUS10', 'ฉันต้องเรียนรู้หลายอย่างก่อนจะเริ่มใช้ Phuket Native ได้', 'I needed to learn a lot of things before I could get going with this system.'],
 ];
 
 const EUCS_ITEMS = [
   ['C1', 'Phuket Native แสดงข้อมูลที่ฉันต้องการรู้ เช่น ถนนเส้นไหนรถติด จุดไหนน้ำท่วม', 'Does the system provide the precise information you need?'],
-  ['C3', 'แผนที่และกราฟใน Phuket Native ตอบสิ่งที่ฉันอยากรู้ได้ตรงประเด็น', 'Does the system provide reports that seem to be just about exactly what you need?'],
+  ['C3', 'แผนที่และกราฟใน Phuket Native ให้ข้อมูลตรงกับที่ฉันต้องการ', 'Does the system provide reports that seem to be just about exactly what you need?'],
   ['C4', 'ข้อมูลใน Phuket Native ครบพอ ไม่ต้องไปหาที่อื่นเพิ่ม', 'Does the system provide sufficient information?'],
   ['F1', 'Phuket Native จัดวางแผนที่และข้อมูลให้ดูและใช้งานได้สะดวก', 'Do you think the output is presented in a useful format?'],
   ['F2', 'สีและสัญลักษณ์บนแผนที่เข้าใจง่าย ไม่กำกวม', 'Is the information clear?'],
@@ -53,7 +53,7 @@ const EUCS_ITEMS = [
 const PU_ITEMS = [
   ['PU1', 'Phuket Native ช่วยให้ฉันวางแผนการเดินทางช่วงฝนตกได้เร็วขึ้น', 'Using the system in my job would enable me to accomplish tasks more quickly.'],
   ['PU2', 'Phuket Native ช่วยให้ฉันวางแผนการเดินทางช่วงฝนตกได้ดีขึ้น', 'Using the system would improve my job performance.'],
-  ['PU5', 'Phuket Native ทำให้การวางแผนเดินทางช่วงฝนตกหรือน้ำท่วมง่ายขึ้น', 'Using the system would make it easier to do my job.'],
+  ['PU5', 'Phuket Native ทำให้การวางแผนเดินทางช่วงฝนตกง่ายขึ้น', 'Using the system would make it easier to do my job.'],
   ['PU6', 'โดยรวมแล้ว Phuket Native มีประโยชน์กับฉัน', 'I would find the system useful in my job.'],
 ];
 

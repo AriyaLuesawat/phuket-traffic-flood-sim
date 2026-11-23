@@ -48,6 +48,26 @@ print(do.call(descriptives, list(data = d, vars = unname(unlist(rel)), n = FALSE
 cat("\n==== SUS score 0-100 (Exploration > Descriptives) ====\n")
 print(descriptives(d, vars = "SUS_score", median = TRUE, range = TRUE, iqr = TRUE, pc = TRUE, pcValues = "25,50,75",
                    skew = TRUE, kurt = TRUE, sw = TRUE))
+
+cat("\n==== Part III. Hypothesis tests (COM-101 Slide 9-10, Lab T-Test and Regression) ====\n")
+d$EUCS_mean <- rowMeans(d[c("C1", "C3", "C4", "F1", "F2")])
+d$PU_mean <- rowMeans(d[c("PU1", "PU2", "PU5", "PU6")])
+d$CI_mean <- rowMeans(d[c("CI1", "CI2")])
+d$FloodGroup <- factor(ifelse(d$FloodEncounter %in% c("3–5 ครั้ง", "มากกว่า 5 ครั้ง"), "3 ครั้งขึ้นไป", "0–2 ครั้ง"),
+                       levels = c("0–2 ครั้ง", "3 ครั้งขึ้นไป"))
+
+cat("\n--- H1: SUS score vs the average of 68 (T-Tests > One Sample T-Test) ---\n")
+print(ttestOneS(d, vars = "SUS_score", testValue = 68, wilcoxon = TRUE, meanDiff = TRUE, ci = TRUE,
+                effectSize = TRUE, desc = TRUE, norm = TRUE))
+
+cat("\n--- H2: PU by flood encounters 0-2 vs 3+ (T-Tests > Independent Samples T-Test) ---\n")
+print(ttestIS(d, vars = "PU_mean", group = "FloodGroup", mann = TRUE, meanDiff = TRUE, ci = TRUE,
+              effectSize = TRUE, desc = TRUE, norm = TRUE, eqv = TRUE))
+
+cat("\n--- H3: CI ~ SUS + EUCS + PU (Regression > Linear Regression) ---\n")
+print(linReg(d, dep = "CI_mean", covs = c("SUS_score", "EUCS_mean", "PU_mean"),
+             blocks = list(list("SUS_score", "EUCS_mean", "PU_mean")), r2Adj = TRUE, modelTest = TRUE,
+             stdEst = TRUE, ci = TRUE, collin = TRUE, norm = TRUE))
 sink()
 
 omv <- sub("\\.csv$", ".omv", inp)
