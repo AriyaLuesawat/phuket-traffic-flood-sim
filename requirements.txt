@@ -12,3 +12,4 @@ shapely
 requests
 scikit-image
 fabdem
+markdown==3.7  # scripts/build_manuscript_pdf.py
